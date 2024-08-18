@@ -463,6 +463,63 @@ StatusEffects = {
         HookType = "",
         HookFunction = function() end 
     },
+    Wither = {
+        Name = "Withering",
+        Icon = "SEF_Icons/wither.png",
+        Type = "DEBUFF",
+        Desc = function(witheramount, delay)
+            return string.format("You are losing %d HP each %g sec.", witheramount, delay)
+        end,
+        Effect = function(ent, time, witheramount, delay)
+            local TimeLeft = ent:GetTimeLeft("Wither")
+            if TimeLeft > 0.1 then
+    
+                if not ent.WitheringEffectDelay then
+                    ent.WitheringEffectDelay = CurTime()
+                end
+    
+                if CurTime() >= ent.WitheringEffectDelay  then
+                    ent:SetHealth(math.min(ent:Health() - witheramount, ent:GetMaxHealth()))
+                    ent.WitheringEffectDelay = CurTime() + delay
+                end
+    
+                if ent:Health() <= 0 then
+                    ent:Kill()
+                end
+    
+            end
+        end,
+        HookType = "",
+        HookFunction = function() end
+    },
+    Discharge = {
+        Icon = "SEF_Icons/discharge.png",
+        Type = "DEBUFF",
+        Desc = function(dischAmount, delay)
+            return string.format("You are losing %d shield each %g sec.", dischAmount, delay)
+        end,
+        Effect = function(ent, time, dischAmount, delay)
+            local TimeLeft = ent:GetTimeLeft("Discharge")
+            if TimeLeft > 0.1  then
+    
+                if not ent.ShieldingEffectDelay then
+                    ent.ShieldingEffectDelay = CurTime()
+                end
+    
+                if CurTime() >= ent.ShieldingEffectDelay  then
+                    ent:SetArmor(math.min(ent:Armor() - dischAmount))
+                    ent.ShieldingEffectDelay = CurTime() + delay
+                end
+    
+                if ent:Armor() <= 0 then
+                    ent:RemoveEffect("Discharge")
+                end
+    
+            end
+        end,
+        HookType = "",
+        HookFunction = function() end
+    },
     Template = { --Name and ID of Effect
         Icon = "SEF_Icons/warning.png", --Icon on HUD and displays
         Desc = "", --Optional
