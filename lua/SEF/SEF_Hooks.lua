@@ -1,5 +1,5 @@
-if SERVER then
 
+if SERVER then
     hook.Add("Think", "EntityStatusEffectsThink", function()
         for entID, effects in pairs(EntActiveEffects) do
             local Affected = Entity(entID)
@@ -29,7 +29,7 @@ if SERVER then
             end
         end
     end)
-    
+
 
     local function CreateEffectHooks()
 
@@ -111,10 +111,11 @@ if SERVER then
         end
     end)
 
-    CreateEffectHooks()
+    hook.Add("InitPostEntity", "LoadSEFDataIntoServer", function() 
+        CreateEffectHooks()
+    end)
 
     concommand.Add("SEF_CreateEffectHooks", function(ply, cmd, args)
         CreateEffectHooks()
-    end, nil, "Reloads or creates all hooks in StatusEffects table.")
-
+    end, nil, "Reloads or creates all SEF hooks.")
 end

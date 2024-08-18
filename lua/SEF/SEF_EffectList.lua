@@ -2,18 +2,26 @@ StatusEffects = {
     Healing = {
         Icon = "SEF_Icons/health-normal.png",
         Type = "BUFF",
-        Desc = function(healamount)
-            return string.format("You are regenerating %d HP each 0.3 sec.", healamount)
+        Desc = function(healamount, delay)
+            if delay == nil then
+                return string.format("You are regenerating %d HP each 0.3 sec.", healamount)
+            else
+                return string.format("You are regenerating %d HP each %g sec.", healamount, delay)
+            end
         end,
-        Effect = function(ent, time, healamount)
+        Effect = function(ent, time, healamount, delay)
             local TimeLeft = ent:GetTimeLeft("Healing")
+            local HealDelay = delay
+
+            if HealDelay == nil then HealDelay = 0.3 end
+
             if TimeLeft > 0.1 then
                 if not ent.HealingEffectDelay then
                     ent.HealingEffectDelay  = CurTime()
                 end
                 if CurTime() >= ent.HealingEffectDelay  then
                     ent:SetHealth(math.min(ent:Health() + healamount, ent:GetMaxHealth()))
-                    ent.HealingEffectDelay = CurTime() + 0.3
+                    ent.HealingEffectDelay = CurTime() + HealDelay
                 end
             end
         end,
@@ -48,23 +56,28 @@ StatusEffects = {
     Energized = {
         Icon = "SEF_Icons/healing-shield.png",
         Type = "BUFF",
-        Desc = function(healamount, maxamount)
-            if maxamount != nil then
+        Desc = function(healamount, delay, maxamount)
+            if maxamount != nil and delay == nil then
                 return string.format("You are regenerating %d shield each 0.3 sec.\n [Max Armor: %d]", healamount, maxamount)
-            else
-                return string.format("You are regenerating %d shield each 0.3 sec up to your max shield amount.", healamount)
+            elseif maxamount != nil and delay != nil then
+                return string.format("You are regenerating %d shield each %g sec.\n [Max Armor: %d]", healamount, delay, maxamount)
+            elseif delay != nil and maxamount == nil then
+                return string.format("You are regenerating %d shield each %g sec up to your max shield amount.", healamount, delay)
             end
         end,
-        Effect = function(ent, time, healamount, maxamount)
+        Effect = function(ent, time, healamount, delay, maxamount)
             local TimeLeft = ent:GetTimeLeft("Energized")
             if maxamount == nil then maxamount = ent:GetMaxArmor() end
+            local HealDelay = delay
+            if HealDelay == nil then HealDelay = 0.3 end
+
             if TimeLeft > 0.1  then
                 if not ent.ShieldingEffectDelay then
                     ent.ShieldingEffectDelay = CurTime()
                 end
                 if CurTime() >= ent.ShieldingEffectDelay  then
                     ent:SetArmor(math.min(ent:Armor() + healamount, maxamount))
-                    ent.ShieldingEffectDelay = CurTime() + 0.3
+                    ent.ShieldingEffectDelay = CurTime() + HealDelay
                 end
             end
         end,
@@ -107,7 +120,7 @@ StatusEffects = {
         HookFunction = function(target, dmginfo)
             if target and target:HaveEffect("Exposed") then
                 dmginfo:ScaleDamage(2)
-                target:EmitSound("player/crit_hit.wav", 110, 100, 1)
+                target:EmitSound("npc/zombie/zombie_hit.wav", 110, 100, 1)
             end
         end
     },
@@ -287,12 +300,17 @@ StatusEffects = {
         Desc = function(damageamount)
             return string.format("You are bleeding.\n You are losing %d HP each 0.3 sec.", damageamount)
         end,
-        Effect = function(ent, time, damageamount, inf)
+        Effect = function(ent, time, damageamount, delay, inf)
             local TimeLeft = ent:GetTimeLeft("Bleeding")
-            if TimeLeft > 0.1  then
+            if TimeLeft > 0.1 then
+
                 if not ent.BleedingEffectDelay then
                     ent.BleedingEffectDelay  = CurTime()
                 end
+
+                local BleedDelay = delay
+                if BleedDelay == nil then BleedDelay = 0.3 end
+
                 if CurTime() >= ent.BleedingEffectDelay  then
                     if IsValid(inf) then
                         local dmg = DamageInfo()
@@ -303,7 +321,7 @@ StatusEffects = {
                     else
                         ent:TakeDamage(damageamount)
                     end
-                    ent.BleedingEffectDelay = CurTime() + 0.3
+                    ent.BleedingEffectDelay = CurTime() + BleedDelay
                 end
             end
         end,
