@@ -368,4 +368,35 @@ if SERVER then
             print("[Status Effect Framework] Player not found or invalid player name:", playerName)
         end
     end)
+else
+
+    local PLAYERCLIENT = FindMetaTable("Player")
+
+    function PLAYERCLIENT:HaveEffect(effectName)
+        if ActiveEffects[effectName] then
+            return true
+        else
+            return false
+        end
+    end
+
+    function PLAYERCLIENT:HavePassive(effectName)
+        if ActivePassives[effectName] then
+            return true
+        else
+            return false
+        end
+    end
+
+    function PLAYERCLIENT:GetTimeLeft(effectName)
+        if ActiveEffects[effectName] then
+            local effectData = ActiveEffects[effectName]
+            local elapsedTime = CurTime() - effectData.StartTime
+            local remainingTime = effectData.Duration - elapsedTime
+            return math.max(remainingTime, 0)
+        else
+            return 0 
+        end
+    end
+    
 end

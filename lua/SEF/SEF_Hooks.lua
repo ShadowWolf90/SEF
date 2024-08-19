@@ -54,68 +54,69 @@ if SERVER then
 
 
     local function CreateEffectHooks()
-
-
+        -- Przetwarzanie efektów
         for effect, effectData in pairs(StatusEffects) do
-            if effect and effectData.HookType ~= "" then
-
-                if not effectData.HookInit then
-
-                    effectData.LastHookFunction = effectData.HookFunction
-
-                    print("[Status Effect Framework] Effect Hook has been created: " .. effect ..  " Hook: " .. effect .. "StatusEffectHookManager")
-
-                    hook.Add(effectData.HookType, effect .. "StatusEffectHookManager", function(...)
-                        effectData.HookFunction(...)
-                    end)
-
-
-                    effectData.HookInit = true
-
-                elseif effectData.LastHookFunction != effectData.HookFunction then
-
-                    print("[Status Effect Framework] Updating Hook Function for: " .. effect)
-
-                    hook.Add(effectData.HookType, effect .. "StatusEffectHookManager", function(...)
-                        effectData.HookFunction(...)
-                    end)
-
-                    effectData.LastHookFunction = effectData.HookFunction
-
+            if effect and effectData.ServerHooks then
+                for index, hookData in ipairs(effectData.ServerHooks) do
+                    if hookData.HookType then
+                        local hookID = effect .. "ServerStatusEffectHookManager" .. tostring(index)
+                        
+                        if not hookData.HookInit then
+                            hookData.LastHookFunction = hookData.HookFunction
+    
+                            print("[Status Effect Framework] Effect Hook has been created: " .. effect .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.HookInit = true
+                        elseif hookData.LastHookFunction ~= hookData.HookFunction then
+                            print("[Status Effect Framework] Updating Hook Function for: " .. effect .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.LastHookFunction = hookData.HookFunction
+                        end
+                    end
                 end
             end
         end
-
+    
+        -- Przetwarzanie efektów pasywnych (jeśli istnieją)
         for passive, PassiveData in pairs(PassiveEffects) do
-            if passive and PassiveData.HookType ~= "" then
-
-                if not PassiveData.HookInit then
-
-                    PassiveData.LastHookFunction = PassiveData.HookFunction
-
-                    print("[Status Effect Framework] Passive Hook has been created: " .. passive ..  " Hook: " .. passive .. "PassiveEffectHookManager")
-
-                    hook.Add(PassiveData.HookType, passive .. "StatusEffectHookManager", function(...)
-                        PassiveData.HookFunction(...)
-                    end)
-
-
-                    PassiveData.HookInit = true
-
-                elseif PassiveData.LastHookFunction != PassiveData.HookFunction then
-
-                    print("[Status Effect Framework] Updating Hook Function for: " .. passive)
-
-                    hook.Add(PassiveData.HookType, passive .. "PassiveEffectHookManager", function(...)
-                        PassiveData.HookFunction(...)
-                    end)
-
-                    PassiveData.LastHookFunction = PassiveData.HookFunction
-
+            if passive and PassiveData.ServerHooks then
+                for index, hookData in ipairs(PassiveData.ServerHooks) do
+                    if hookData.HookType ~= "" then
+                        local hookID = passive .. "ServerPassiveEffectHookManager" .. tostring(index)
+    
+                        if not hookData.HookInit then
+                            hookData.LastHookFunction = hookData.HookFunction
+    
+                            print("[Status Effect Framework] Passive Hook has been created: " .. passive .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.HookInit = true
+                        elseif hookData.LastHookFunction ~= hookData.HookFunction then
+                            print("[Status Effect Framework] Updating Hook Function for: " .. passive .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.LastHookFunction = hookData.HookFunction
+                        end
+                    end
                 end
             end
         end
     end
+    
 
     hook.Add("PlayerDeath", "RemoveStatusEffects", function(victim, inflictor, attacker)
         if IsValid(victim) and EntActiveEffects[victim:EntIndex()] then
@@ -140,4 +141,77 @@ if SERVER then
     concommand.Add("SEF_CreateEffectHooks", function(ply, cmd, args)
         CreateEffectHooks()
     end, nil, "Reloads or creates all SEF hooks.")
+else
+    local function CreateClientEffectHooks()
+        -- Przetwarzanie efektów
+        for effect, effectData in pairs(StatusEffects) do
+            if effect and effectData.ClientHooks then
+                for index, hookData in ipairs(effectData.ClientHooks) do
+                    if hookData.HookType then
+                        local hookID = effect .. "ClientStatusEffectHookManager" .. tostring(index)
+                        
+                        if not hookData.HookInit then
+                            hookData.LastHookFunction = hookData.HookFunction
+    
+                            print("[Status Effect Framework] Effect Hook has been created: " .. effect .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.HookInit = true
+                        elseif hookData.LastHookFunction ~= hookData.HookFunction then
+                            print("[Status Effect Framework] Updating Hook Function for: " .. effect .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.LastHookFunction = hookData.HookFunction
+                        end
+                    end
+                end
+            end
+        end
+    
+        -- Przetwarzanie efektów pasywnych (jeśli istnieją)
+        for passive, PassiveData in pairs(PassiveEffects) do
+            if passive and PassiveData.ClientHooks then
+                for index, hookData in ipairs(PassiveData.ClientHooks) do
+                    if hookData.HookType ~= "" then
+                        local hookID = passive .. "ClientPassiveEffectHookManager" .. tostring(index)
+    
+                        if not hookData.HookInit then
+                            hookData.LastHookFunction = hookData.HookFunction
+    
+                            print("[Status Effect Framework] Client Passive Hook has been created: " .. passive .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.HookInit = true
+                        elseif hookData.LastHookFunction ~= hookData.HookFunction then
+                            print("[Status Effect Framework] Client Updating Hook Function for: " .. passive .. " Hook: " .. hookID)
+    
+                            hook.Add(hookData.HookType, hookID, function(...)
+                                hookData.HookFunction(...)
+                            end)
+    
+                            hookData.LastHookFunction = hookData.HookFunction
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+
+    hook.Add("InitPostEntity", "LoadClientSEFDataIntoServer", function() 
+        CreateClientEffectHooks()
+    end)
+
+    concommand.Add("SEF_CreateClientEffectHooks", function(ply, cmd, args)
+        CreateClientEffectHooks()
+    end, nil, "Reloads or creates all SEF hooks for Client.")
 end

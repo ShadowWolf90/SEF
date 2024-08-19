@@ -1,8 +1,8 @@
 if CLIENT then
 
     local ply = LocalPlayer()
-    local ActiveEffects = {}
-    local ActivePassives = {}
+    ActiveEffects = {}
+    ActivePassives = {}
     AllEntEffects = {}
 
     CreateClientConVar("SEF_StatusEffectX", 50, true, false, "X position of Status Effects applied on you.", 0, ScrW())

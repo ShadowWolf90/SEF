@@ -24,9 +24,7 @@ StatusEffects = {
                     ent.HealingEffectDelay = CurTime() + HealDelay
                 end
             end
-        end,
-        HookType = "",
-        HookFunction = function() end
+        end
     },
     HealthBoost = {
         Icon = "SEF_Icons/health-increase.png",
@@ -114,13 +112,17 @@ StatusEffects = {
         Desc = "Received damage is doubled.",
         Effect = function(ent, time)
         end,
-        HookType = "EntityTakeDamage",
-        HookFunction = function(target, dmginfo)
-            if target and target:HaveEffect("Exposed") then
-                dmginfo:ScaleDamage(2)
-                target:EmitSound("npc/zombie/zombie_hit.wav", 110, 100, 1)
-            end
-        end
+        ServerHooks = {
+            {
+                HookType = "EntityTakeDamage",
+                HookFunction = function(target, dmginfo)
+                    if target and target:HaveEffect("Exposed") then
+                        dmginfo:ScaleDamage(2)
+                        target:EmitSound("npc/zombie/zombie_hit.wav", 110, 100, 1)
+                    end
+                end
+            }
+        }
     },
     Endurance = {
         Icon = "SEF_Icons/endurance.png",
@@ -128,13 +130,17 @@ StatusEffects = {
         Desc = "Received damage is reduced by 50%.",
         Effect = function(ent, time)
         end,
-        HookType = "EntityTakeDamage",
-        HookFunction = function(target, dmginfo)
-            if target and target:HaveEffect("Endurance") then
-                dmginfo:ScaleDamage(0.5)
-                target:EmitSound("phx/epicmetal_hard.wav", 110, math.random(75, 125), 1)
-            end
-        end
+        ServerHooks = {
+            {
+                HookType = "EntityTakeDamage",
+                HookFunction = function(target, dmginfo)
+                    if target and target:HaveEffect("Endurance") then
+                        dmginfo:ScaleDamage(0.5)
+                        target:EmitSound("phx/epicmetal_hard.wav", 110, math.random(75, 125), 1)
+                    end
+                end
+            }
+        }
     },
     Haste = {
         Icon = "SEF_Icons/haste.png",
@@ -343,18 +349,23 @@ StatusEffects = {
                 end
             end
         end,
-        HookType = "EntityTakeDamage",
-        HookFunction = function(target, dmginfo)
-            local attacker = dmginfo:GetAttacker()
-            if target and target ~= attacker and (target:IsNPC() or target:IsPlayer() or target:IsNextBot()) and attacker:HaveEffect("Bloodlust") then
-                dmginfo:ScaleDamage(1 + (attacker.BloodLustDMGIncrease / 100))
-                target:EmitSound("npc/manhack/grind_flesh1.wav", 110, 100, 1)
-                if attacker.BloodLustLifeSteal ~= nil then
-                    attacker:SetHealth(math.min(attacker:Health() + (dmginfo:GetDamage() * (attacker.BloodLustLifeSteal / 100)), attacker:GetMaxHealth()))
-                    attacker:EmitSound("npc/headcrab_fast/headbite.wav", 110, 100, 1)
+        ServerHooks = {
+            {
+                HookType = "EntityTakeDamage",
+                HookFunction = function(target, dmginfo)
+                    local attacker = dmginfo:GetAttacker()
+                    if target and target ~= attacker and (target:IsNPC() or target:IsPlayer() or target:IsNextBot()) and attacker:HaveEffect("Bloodlust") then
+                        dmginfo:ScaleDamage(1 + (attacker.BloodLustDMGIncrease / 100))
+                        target:EmitSound("npc/manhack/grind_flesh1.wav", 110, 100, 1)
+                        if attacker.BloodLustLifeSteal ~= nil then
+                            attacker:SetHealth(math.min(attacker:Health() + (dmginfo:GetDamage() * (attacker.BloodLustLifeSteal / 100)), attacker:GetMaxHealth()))
+                            attacker:EmitSound("npc/headcrab_fast/headbite.wav", 110, 100, 1)
+                        end
+                    end
                 end
-            end
-        end
+            }
+        }
+
     },
     Stunned = { 
         Icon = "SEF_Icons/stunned.png",
@@ -452,9 +463,10 @@ StatusEffects = {
         Icon = "SEF_Icons/warning.png", --Icon on HUD and displays
         Desc = "", --Optional
         Type = "DEBUFF", --Type 
-        Effect = function(ent, time) --Effect on entity/player, function can be expanded by additional arguments
-        end,
-        HookType = "", --Hook name 
-        HookFunction = function() end -- What function should be added to set HookType.
+        EffectBegin = function(ent) end,
+        Effect = function(ent, time) end, --Effect on entity/player, function can be expanded by additional arguments,
+        EffectEnd = function(ent) end,
+        ClientHooks = {},
+        ServerHooks = {}
     }
 }
