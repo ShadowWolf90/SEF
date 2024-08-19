@@ -11,6 +11,7 @@ if SERVER then
     local ENTITY = FindMetaTable("Entity")
     EntActiveEffects = {}
     EntActivePassives = {}
+    EntBaseStats = {}
 
     function ENTITY:ApplyEffect(effectName, time, ...)
         local effect = StatusEffects[effectName]
@@ -30,6 +31,8 @@ if SERVER then
             local args = {...}
             EntActiveEffects[EntID][effectName] = {
                 Function = effect.Effect,
+                FunctionBegin = effect.EffectBegin,
+                FunctionEnd = effect.EffectEnd,
                 StartTime = CurTime(),
                 Duration = time,
                 Args = args
@@ -200,6 +203,84 @@ if SERVER then
             net.Abort()
         end
     end
+
+    // BASE STATS FUNCTIONS
+
+    local function InitEntityBaseStats(ent)
+        EntBaseStats[ent] = {
+            MaxHealth = ent:GetMaxHealth(),
+            MaxArmor = ent.GetMaxArmor and ent:GetMaxArmor() or 0,
+            WalkSpeed = ent.GetWalkSpeed and ent:GetWalkSpeed() or 0,
+            RunSpeed =  ent.GetRunSpeed and ent:GetRunSpeed() or 0,
+            JumpPower = ent.GetJumpPower and ent:GetJumpPower() or 0
+        }
+    end
+
+
+    function BaseStatAdd(ent, stat, value)
+        if stat == "MaxHealth" then
+            ent:SetMaxHealth(ent:GetMaxHealth() + value)
+        elseif stat == "MaxArmor" then
+            ent:SetMaxArmor(ent:GetMaxArmor() + value)
+        elseif stat == "WalkSpeed" then
+            ent:SetWalkSpeed(ent:GetWalkSpeed() + value)
+        elseif stat == "RunSpeed" then
+            ent:SetRunSpeed(ent:GetRunSpeed() + value)
+        elseif stat == "JumpPower" then
+            ent:SetJumpPower(ent:GetJumpPower() + value)
+        end
+        print("[BaseStats System] Added " .. value .. " to statistic: " .. stat .. " on entity: " .. tostring(ent))
+    end
+    
+    function BaseStatRemove(ent, stat, value)
+        if stat == "MaxHealth" then
+            ent:SetMaxHealth(ent:GetMaxHealth() - value)
+        elseif stat == "MaxArmor" then
+            ent:SetMaxArmor(ent:GetMaxArmor() - value)
+        elseif stat == "WalkSpeed" then
+            ent:SetWalkSpeed(ent:GetWalkSpeed() - value)
+        elseif stat == "RunSpeed" then
+            ent:SetRunSpeed(ent:GetRunSpeed() - value)
+        elseif stat == "JumpPower" then
+            ent:SetJumpPower(ent:GetJumpPower() - value)
+        end
+        print("[BaseStats System] Removed " .. value .. " from statistic: " .. stat .. " on entity: " .. tostring(ent))
+    end
+    
+    function BaseStatReset(ent, stat)
+        if stat == "MaxHealth" then
+            ent:SetMaxHealth(EntBaseStats[ent].MaxHealth)
+        elseif stat == "MaxArmor" then
+            ent:SetMaxArmor(EntBaseStats[ent].MaxArmor)
+        elseif stat == "WalkSpeed" then
+            ent:SetWalkSpeed(EntBaseStats[ent].WalkSpeed)
+        elseif stat == "RunSpeed" then
+            ent:SetRunSpeed(EntBaseStats[ent].RunSpeed)
+        elseif stat == "JumpPower" then
+            ent:SetJumpPower(EntBaseStats[ent].JumpPower)
+        end
+
+        print("[BaseStats System] Statistic " .. stat .. " has been reset on entity: " .. tostring(ent))
+    end
+    
+    hook.Add("EntityRemoved", "RemoveEntityBaseStats", function(ent)
+        if EntBaseStats[ent] then
+            EntBaseStats[ent] = nil
+            --PrintMessage(HUD_PRINTTALK, "Removed Base Stats for: " .. tostring(ent))
+        end
+    end)
+
+    hook.Add("Think", "InitBaseStatsSEF", function() 
+        for _, ent in ipairs(ents.GetAll()) do
+            if ent:IsPlayer() or ent:IsNPC() or ent:IsNextBot() then
+                if not EntBaseStats[ent] then
+                    InitEntityBaseStats(ent)
+                    --PrintMessage(HUD_PRINTTALK, "Created Base Stats for: " .. tostring(ent))
+                    --PrintTable(EntBaseStats)
+                end
+            end
+        end
+    end)
 
 
     local function FindPlayerByName(name)

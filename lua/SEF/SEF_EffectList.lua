@@ -34,20 +34,18 @@ StatusEffects = {
         Desc = function(added)
             return string.format("Your max health has been increased by %d HP!", added)
         end,
-        Effect = function(ent, time, healthadd)
-            local TimeLeft = ent:GetTimeLeft("HealthBoost")
-
-            if not ent.HealthBoostPreBuff then
-                ent.HealthBoostPreBuff = ent:GetMaxHealth()
+        EffectBegin = function(ent, healthadd)
+            local currentHealthAdd = ent.HealthBoostLastAdded or 0
+            if currentHealthAdd > 0 then
+                BaseStatRemove(ent, "MaxHealth", currentHealthAdd)
             end
-
-            if TimeLeft > 0.1 then
-                ent:SetMaxHealth(ent.HealthBoostPreBuff + healthadd)
-            elseif TimeLeft <= 0.1 then
-                ent:SetMaxHealth(ent.HealthBoostPreBuff)
-                if ent:Health() > ent.HealthBoostPreBuff then
-                    ent:SetHealth(ent.HealthBoostPreBuff) 
-                end
+            BaseStatAdd(ent, "MaxHealth", healthadd)
+            ent.HealthBoostLastAdded = healthadd
+        end,
+        EffectEnd = function(ent)
+            if ent.HealthBoostLastAdded then
+                BaseStatRemove(ent, "MaxHealth", ent.HealthBoostLastAdded)
+                ent.HealthBoostLastAdded = nil
             end
         end,
         HookType = "",
@@ -144,45 +142,21 @@ StatusEffects = {
         Desc = function(amount)
             return string.format("Your movement speed is increased by %d units.", amount)
         end,
-        Effect = function(ent, time, amount)
-            local TimeLeft = ent:GetTimeLeft("Haste")
+        EffectBegin = function(ent, speedAdd)
+            if ent.HasteEffectLastAdded then
+                BaseStatRemove(ent, "WalkSpeed", ent.HasteEffectLastAdded)
+                BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
+            end
 
-            if TimeLeft > 0.5 then
-    
-                if ent:IsPlayer() then
-                    if not ent.HasteEffectSpeedWalk and not ent.HasteEffectSpeedRun then
-                        ent.HasteEffectSpeedWalk = ent:GetWalkSpeed()
-                        ent.HasteEffectSpeedRun = ent:GetRunSpeed()
-                    end
-                    ent:SetRunSpeed(ent.HasteEffectSpeedRun  + amount)
-                    ent:SetWalkSpeed(ent.HasteEffectSpeedWalk + amount)
-                elseif ent.IsLambdaPlayer then
-                    local walkingSpeed = GetConVar("lambdaplayers_lambda_walkspeed")
-                    local runningSpeed = GetConVar("lambdaplayers_lambda_runspeed")
-                    ent:SetRunSpeed(runningSpeed:GetInt() + amount)
-                    ent:SetWalkSpeed(walkingSpeed:GetInt() + amount)
-                elseif ent:IsNPC() then
-                    ent:SoftRemoveEffect("Haste")
-                    print("Haste won't work on NPCs.")
-                elseif ent:IsNextBot() and not ent.IsLambdaPlayer then
-                    if not ent.HasteEffectSpeed then
-                        ent.HasteEffectSpeed = ent:GetDesiredSpeed()
-                    end
-                    ent:SetDesiredSpeed(ent.HasteEffectSpeed + amount)
-                end
-            elseif TimeLeft <= 0.5 then
-    
-                if ent:IsPlayer() then
-                    ent:SetRunSpeed(ent.HasteEffectSpeedRun)
-                    ent:SetWalkSpeed(ent.HasteEffectSpeedWalk)
-                elseif ent.IsLambdaPlayer then
-                    local walkingSpeed = GetConVar("lambdaplayers_lambda_walkspeed")
-                    local runningSpeed = GetConVar("lambdaplayers_lambda_runspeed")
-                    ent:SetRunSpeed(runningSpeed:GetInt())
-                    ent:SetWalkSpeed(walkingSpeed:GetInt())
-                elseif ent:IsNextBot() and not ent.IsLambdaPlayer then
-                    ent:SetDesiredSpeed(ent.HasteEffectSpeed)
-                end
+            BaseStatAdd(ent, "WalkSpeed", speedAdd)
+            BaseStatAdd(ent, "RunSpeed", speedAdd)
+            ent.HasteEffectLastAdded = speedAdd
+        end,
+        EffectEnd = function(ent)
+            if ent.HasteEffectLastAdded then
+                BaseStatRemove(ent, "WalkSpeed", ent.HasteEffectLastAdded)
+                BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
+                ent.HasteEffectLastAdded = nil
             end
         end,
         HookType = "",
@@ -195,44 +169,24 @@ StatusEffects = {
         Effect = function(ent, time)
             local TimeLeft = ent:GetTimeLeft("Exhaust")
     
-            if (ent:IsPlayer() or ent.IsLambdaPlayer) and not ent.ExhaustedEffectSpeedWalk and not ent.ExhaustedEffectSpeedRun then
-                ent.ExhaustedEffectSpeedWalk = ent:GetWalkSpeed()
-                ent.ExhaustedEffectSpeedRun = ent:GetRunSpeed()
-            elseif ent:IsNextBot() and not ent.IsLambdaPlayer then
-                ent.ExhaustEffectSpeed = ent:GetDesiredSpeed()
-            end
-
-            if ent:HaveEffect("Haste") then
-                ent:SoftRemoveEffect("Haste")
-                if (ent:IsPlayer() or ent.IsLambdaPlayer) then
-                    ent.ExhaustedEffectSpeedWalk = ent.HasteEffectSpeedWalk
-                    ent.ExhaustedEffectSpeedRun = ent.HasteEffectSpeedRun
-                else
-                    ent.ExhaustEffectSpeed = ent.HasteEffectSpeed
-                end
-            end
-    
             if TimeLeft > 0.1 then
-                local walkingSpeed = GetConVar("lambdaplayers_lambda_walkspeed"):GetInt()
-                local runningSpeed = GetConVar("lambdaplayers_lambda_runspeed"):GetInt()
-    
-                if ent:IsPlayer() and ent.ExhaustedEffectSpeedWalk and ent.ExhaustedEffectSpeedRun then
-                    if ent:GetWalkSpeed() > ent.ExhaustedEffectSpeedWalk then
-                        ent:SetWalkSpeed(ent.ExhaustedEffectSpeedWalk)
+                if ent:HaveEffect("Haste") then
+                    ent:SoftRemoveEffect("Haste")
+                end
+                
+                if ent:IsPlayer() or ent.IsLambdaPlayer then
+                    if ent:GetWalkSpeed() > EntBaseStats[ent].WalkSpeed then
+                        local excessWalkSpeed = ent:GetWalkSpeed() - EntBaseStats[ent].WalkSpeed
+                        BaseStatRemove(ent, "WalkSpeed", excessWalkSpeed)
                     end
-                    if ent:GetRunSpeed() > ent.ExhaustedEffectSpeedRun then
-                        ent:SetRunSpeed(ent.ExhaustedEffectSpeedRun)
+                    if ent:GetRunSpeed() > EntBaseStats[ent].RunSpeed then
+                        local excessRunSpeed = ent:GetRunSpeed() - EntBaseStats[ent].RunSpeed
+                        BaseStatRemove(ent, "RunSpeed", excessRunSpeed)
                     end
-                elseif ent.IsLambdaPlayer and ent.ExhaustedEffectSpeedWalk and ent.ExhaustedEffectSpeedRun then
-                    if ent:GetWalkSpeed() > ent.ExhaustedEffectSpeedWalk then
-                        ent:SetWalkSpeed(walkingSpeed)
-                    end
-                    if ent:GetRunSpeed() > ent.ExhaustedEffectSpeedRun then
-                        ent:SetRunSpeed(runningSpeed)
-                    end
-                elseif ent:IsNextBot() and not ent.IsLambdaPlayer and ent.ExhaustEffectSpeed then
-                    if ent:GetDesiredSpeed() > ent.ExhaustEffectSpeed then
-                        ent:SetDesiredSpeed(ent.ExhaustEffectSpeed)
+                elseif ent:IsNextBot() and not ent.IsLambdaPlayer then
+                    if ent:GetDesiredSpeed() > EntBaseStats[ent].RunSpeed then
+                        local excessSpeed = ent:GetDesiredSpeed() - EntBaseStats[ent].RunSpeed
+                        BaseStatRemove(ent, "RunSpeed", excessSpeed)
                     end
                 end
             end
@@ -246,49 +200,23 @@ StatusEffects = {
         Desc = function(amount)
             return string.format("Your movement speed is decreased by %d units!", amount)
         end,
-        Effect = function(ent, time, amount)
-            local TimeLeft = ent:GetTimeLeft("Hindered")
-
-            if TimeLeft > 0.5 then
-                local walkingSpeed = GetConVar("lambdaplayers_lambda_walkspeed")
-                local runningSpeed = GetConVar("lambdaplayers_lambda_runspeed")
+        EffectBegin = function(ent, speedDecrease)
+            if ent.HinderedEffectLastAdded then
+                BaseStatAdd(ent, "WalkSpeed", ent.HinderedEffectLastAdded)
+                BaseStatAdd(ent, "RunSpeed", ent.HinderedEffectLastAdded)
+            end
     
-                if ent:IsPlayer() then
-
-                    if not ent.PlayerHinderedSpeedWalk then
-                        ent.PlayerHinderedSpeedWalk = ent:GetWalkSpeed()
-                        ent.PlayerHinderedSpeedRun = ent:GetRunSpeed()  
-                    end
-
-                    ent:SetRunSpeed(ent.PlayerHinderedSpeedRun - amount)
-                    ent:SetWalkSpeed(ent.PlayerHinderedSpeedWalk - amount)
-                elseif ent.IsLambdaPlayer then
-                    ent:SetRunSpeed(runningSpeed:GetInt() - amount)
-                    ent:SetWalkSpeed(walkingSpeed:GetInt() - amount)
-                elseif ent:IsNPC() then
-                    ent:RemoveEffect("Hindered")
-                    print("NPCs are not supported")
-                elseif ent:IsNextBot() and not ent.IsLambdaPlayer then
-                    if not ent.HinderedEffectSpeed then
-                        ent.HasteEffectSpeed = ent:GetDesiredSpeed()
-                    end
-                    ent:SetDesiredSpeed(ent.HasteEffectSpeed - amount)
-                end
-            elseif TimeLeft <= 0.5 then
-                local walkingSpeed = GetConVar("lambdaplayers_lambda_walkspeed")
-                local runningSpeed = GetConVar("lambdaplayers_lambda_runspeed")
+            -- Zmniejszenie prędkości
+            BaseStatRemove(ent, "WalkSpeed", speedDecrease)
+            BaseStatRemove(ent, "RunSpeed", speedDecrease)
     
-                if ent:IsPlayer() and ent.PlayerHinderedSpeedWalk ~= nil then
-                    ent:SetRunSpeed(ent.PlayerHinderedSpeedRun)
-                    ent:SetWalkSpeed(ent.PlayerHinderedSpeedWalk)
-                    ent.PlayerHinderedSpeedWalk = nil
-                    ent.PlayerHinderedSpeedRun = nil  
-                elseif ent.IsLambdaPlayer then
-                    ent:SetRunSpeed(runningSpeed:GetInt())
-                    ent:SetWalkSpeed(walkingSpeed:GetInt())
-                elseif ent:IsNextBot() and not ent.IsLambdaPlayer then
-                    ent:SetDesiredSpeed(ent.HindredEffectSpeed)
-                end
+            ent.HinderedEffectLastAdded = speedDecrease
+        end,
+        EffectEnd = function(ent)
+            if ent.HinderedEffectLastAdded then
+                BaseStatAdd(ent, "WalkSpeed", ent.HinderedEffectLastAdded)
+                BaseStatAdd(ent, "RunSpeed", ent.HinderedEffectLastAdded)
+                ent.HinderedEffectLastAdded = nil
             end
         end,
         HookType = "",

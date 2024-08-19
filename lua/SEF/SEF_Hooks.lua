@@ -5,9 +5,29 @@ if SERVER then
             local Affected = Entity(entID)
             if IsValid(Affected) and (Affected:IsPlayer() or Affected:IsNPC() or Affected:IsNextBot()) then
                 for effectName, effectData in pairs(effects) do
-                    if CurTime() - effectData.StartTime <= effectData.Duration then
-                        effectData.Function(Affected, effectData.Duration, unpack(effectData.Args))
+                    local currentTime = CurTime()
+                    local TimeLeft = effectData.StartTime + effectData.Duration - currentTime
+                    if TimeLeft > 0 then
+                        -- Jeśli efekt jest nowy lub został ponownie nałożony
+                        if not effectData.HasBegun or (effectData.HasBegun and effectData.IsReApplied) then
+                            -- Wywołanie funkcji EffectBegin
+                            if effectData.FunctionBegin then
+                                effectData.FunctionBegin(Affected, unpack(effectData.Args))
+                            end
+                            effectData.HasBegun = true
+                            effectData.IsReApplied = nil -- Resetowanie flagi przy pierwszym wywołaniu
+                        end
+
+                        if effectData.Function then
+                            effectData.Function(Affected, effectData.Duration, unpack(effectData.Args))
+                        end
+                        
                     else
+                        -- Wywołanie funkcji EffectEnd przed usunięciem efektu
+                        if effectData.FunctionEnd then
+                            effectData.FunctionEnd(Affected, unpack(effectData.Args))
+                        end
+    
                         Affected:RemoveEffect(effectName)
                     end
                 end
@@ -16,6 +36,8 @@ if SERVER then
             end
         end
     end)
+    
+    
 
     hook.Add("Think", "EntityPassivesEffectThink", function()
         for entID, effects in pairs(EntActivePassives) do
@@ -98,7 +120,7 @@ if SERVER then
     hook.Add("PlayerDeath", "RemoveStatusEffects", function(victim, inflictor, attacker)
         if IsValid(victim) and EntActiveEffects[victim:EntIndex()] then
             for effectName, _ in pairs(EntActiveEffects[victim:EntIndex()]) do
-                victim:RemoveEffect(effectName)
+                victim:SoftRemoveEffect(effectName)
             end
         end
     end)
@@ -106,7 +128,7 @@ if SERVER then
     hook.Add("LambdaOnKilled", "RemoveStatusEffectsLambda", function(lambda, dmg, isSilent)
         if IsValid(lambda) and EntActiveEffects[lambda:EntIndex()] then
             for effectName, _ in pairs(EntActiveEffects[lambda:EntIndex()]) do
-                timer.Simple(0.5, function() lambda:RemoveEffect(effectName) end)
+                timer.Simple(0.5, function() lambda:SoftRemoveEffect(effectName) end)
             end
         end
     end)
