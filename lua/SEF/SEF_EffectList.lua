@@ -235,7 +235,7 @@ StatusEffects = {
                     BaseStatAdd(ent, "RunSpeed", ent.HinderedEffectLastAdded)
                     ent.HinderedEffectLastAdded = nil
                 end
-            elseif ent:IsNPC() and not ent:IsNextBot() then
+            elseif ent:IsNPC() and not ent:IsNextBot() and ent:Health() > 0 then
                 ent:SetMovementActivity(ent.PreviousMovement)
                 ent.PreviousMovement = nil
             end
