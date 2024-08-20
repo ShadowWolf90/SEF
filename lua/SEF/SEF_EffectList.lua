@@ -431,8 +431,10 @@ StatusEffects = {
                     ent.WitheringEffectDelay = CurTime() + delay
                 end
     
-                if (ent:IsPlayer() and ent:Health() <= 0 and ent:Alive()) or ent:Health() <= 0 then
+                if ent:IsPlayer() and ent:Health() <= 0 and ent:Alive()then
                     ent:Kill()
+                elseif not ent:IsPlayer() and ent:Health() <= 0 then
+                    ent:TakeDamage(1) 
                 end
     
             end
