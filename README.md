@@ -5,7 +5,6 @@
 
 ## Credits
 - Project Lead: **Aaron**
-- Assets: **Northwood Studios**
 
 ## 🔽 Disclaimers
 You are permitted to modify effects or passives for personal use. However, any redistribution, including uploading modified versions, requires prior written permission from the original author.
