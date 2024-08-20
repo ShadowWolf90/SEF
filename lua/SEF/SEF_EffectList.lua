@@ -149,24 +149,26 @@ StatusEffects = {
             return string.format("Your movement speed is increased by %d units.", amount)
         end,
         EffectBegin = function(ent, speedAdd)
-            if ent.HasteEffectLastAdded then
-                BaseStatRemove(ent, "WalkSpeed", ent.HasteEffectLastAdded)
-                BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
-            end
+            if ent:IsPlayer() or ent.IsLambdaPlayer then
+                if ent.HasteEffectLastAdded then
+                    BaseStatRemove(ent, "WalkSpeed", ent.HasteEffectLastAdded)
+                    BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
+                end
 
-            BaseStatAdd(ent, "WalkSpeed", speedAdd)
-            BaseStatAdd(ent, "RunSpeed", speedAdd)
-            ent.HasteEffectLastAdded = speedAdd
+                BaseStatAdd(ent, "WalkSpeed", speedAdd)
+                BaseStatAdd(ent, "RunSpeed", speedAdd)
+                ent.HasteEffectLastAdded = speedAdd
+            end
         end,
         EffectEnd = function(ent)
-            if ent.HasteEffectLastAdded then
-                BaseStatRemove(ent, "WalkSpeed", ent.HasteEffectLastAdded)
-                BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
-                ent.HasteEffectLastAdded = nil
+            if ent:IsPlayer() or ent.IsLambdaPlayer then
+                if ent.HasteEffectLastAdded then
+                    BaseStatRemove(ent, "WalkSpeed", ent.HasteEffectLastAdded)
+                    BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
+                    ent.HasteEffectLastAdded = nil
+                end
             end
-        end,
-        HookType = "",
-        HookFunction = function() end
+        end
     },
     Exhaust = {
         Icon = "SEF_Icons/exhaust.png",
@@ -196,9 +198,7 @@ StatusEffects = {
                     end
                 end
             end
-        end,
-        HookType = "",
-        HookFunction = function() end
+        end
     },    
     Hindered = {
         Icon = "SEF_Icons/hindered.png",
@@ -207,27 +207,42 @@ StatusEffects = {
             return string.format("Your movement speed is decreased by %d units!", amount)
         end,
         EffectBegin = function(ent, speedDecrease)
-            if ent.HinderedEffectLastAdded then
-                BaseStatAdd(ent, "WalkSpeed", ent.HinderedEffectLastAdded)
-                BaseStatAdd(ent, "RunSpeed", ent.HinderedEffectLastAdded)
+            if ent:IsPlayer() or ent.IsLambdaPlayer then
+                -- Zmiana prędkości gracza
+                if ent.HinderedEffectLastAdded then
+                    BaseStatAdd(ent, "WalkSpeed", ent.HinderedEffectLastAdded)
+                    BaseStatAdd(ent, "RunSpeed", ent.HinderedEffectLastAdded)
+                end
+    
+                BaseStatRemove(ent, "WalkSpeed", speedDecrease)
+                BaseStatRemove(ent, "RunSpeed", speedDecrease)
+    
+                ent.HinderedEffectLastAdded = speedDecrease
             end
-    
-            -- Zmniejszenie prędkości
-            BaseStatRemove(ent, "WalkSpeed", speedDecrease)
-            BaseStatRemove(ent, "RunSpeed", speedDecrease)
-    
-            ent.HinderedEffectLastAdded = speedDecrease
         end,
-        EffectEnd = function(ent)
-            if ent.HinderedEffectLastAdded then
-                BaseStatAdd(ent, "WalkSpeed", ent.HinderedEffectLastAdded)
-                BaseStatAdd(ent, "RunSpeed", ent.HinderedEffectLastAdded)
-                ent.HinderedEffectLastAdded = nil
+        Effect = function(ent, time, speedDecrease)
+            if ent:IsNPC() and not ent:IsNextBot() then
+                if not ent.PreviousMovement then
+                    ent.PreviousMovement = ent:GetMovementActivity()
+                end
+                ent:SetMovementActivity(ACT_WALK)
+            end
+        end, 
+        EffectEnd = function(ent, speedDecrease)
+            if ent:IsPlayer() then
+                if ent.HinderedEffectLastAdded then
+                    BaseStatAdd(ent, "WalkSpeed", ent.HinderedEffectLastAdded)
+                    BaseStatAdd(ent, "RunSpeed", ent.HinderedEffectLastAdded)
+                    ent.HinderedEffectLastAdded = nil
+                end
+            elseif ent:IsNPC() and not ent:IsNextBot() then
+                ent:SetMovementActivity(ent.PreviousMovement)
+                ent.PreviousMovement = nil
             end
         end,
         HookType = "",
         HookFunction = function() end
-    },
+    },    
     Bleeding = {
         Icon = "SEF_Icons/bleed.png",
         Type = "DEBUFF",
@@ -258,9 +273,7 @@ StatusEffects = {
                     ent.BleedingEffectDelay = CurTime() + BleedDelay
                 end
             end
-        end,
-        HookType = "",
-        HookFunction = function() end
+        end
     },
     Incapacitated = {
         Icon = "SEF_Icons/incap.png",
@@ -325,9 +338,7 @@ StatusEffects = {
                     effectData.TenacityAffected = true
                 end
             end
-        end,
-        HookType = "", 
-        HookFunction = function() end
+        end
     },
     Bloodlust = {
         Icon = "SEF_Icons/bloodlust.png",
@@ -398,9 +409,7 @@ StatusEffects = {
                     end
                 end
             end
-        end,
-        HookType = "",
-        HookFunction = function() end 
+        end
     },
     Wither = {
         Name = "Withering",
@@ -422,14 +431,12 @@ StatusEffects = {
                     ent.WitheringEffectDelay = CurTime() + delay
                 end
     
-                if ent:Health() <= 0 then
+                if ent:Health() <= 0 and ent:Alive() then
                     ent:Kill()
                 end
     
             end
-        end,
-        HookType = "",
-        HookFunction = function() end
+        end
     },
     Discharge = {
         Icon = "SEF_Icons/discharge.png",
@@ -455,9 +462,7 @@ StatusEffects = {
                 end
     
             end
-        end,
-        HookType = "",
-        HookFunction = function() end
+        end
     },
     Template = { --Name and ID of Effect
         Icon = "SEF_Icons/warning.png", --Icon on HUD and displays
