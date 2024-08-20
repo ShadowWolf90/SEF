@@ -266,7 +266,7 @@ if CLIENT then
 
         for passiveName, passiveData in pairs(ActivePassives) do
             
-            DrawActivePassive(PassiveX, PassiveY - 75 * ScaleUI, passiveName, passiveData)
+            DrawActivePassive(PassiveX, PassiveY - 75, passiveName, passiveData)
 
             PassiveX = PassiveX + 50
 
