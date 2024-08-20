@@ -134,7 +134,7 @@ if SERVER then
         end
     end)
 
-    hook.Add("InitPostEntity", "LoadSEFDataIntoServer", function() 
+    hook.Add("InitPostEntity", "CreateSEFHooks", function() 
         CreateEffectHooks()
     end)
 
@@ -205,13 +205,13 @@ else
             end
         end
     end
-    
 
-    hook.Add("InitPostEntity", "LoadClientSEFDataIntoServer", function() 
+    hook.Add("InitPostEntity", "CreateSEFClientHooks", function() 
         CreateClientEffectHooks()
     end)
 
     concommand.Add("SEF_CreateClientEffectHooks", function(ply, cmd, args)
         CreateClientEffectHooks()
     end, nil, "Reloads or creates all SEF hooks for Client.")
+
 end

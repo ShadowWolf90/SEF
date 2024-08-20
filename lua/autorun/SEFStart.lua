@@ -11,7 +11,7 @@ if SERVER then
         end
     end
 
-    hook.Add("InitPostEntity", "LoadSEFSystemServer", function() 
+    hook.Add("Initialize", "LoadSEFSystemServer", function() 
         LoadSEFFiles("SEF")
         LoadSEFFiles("SEF_Addon")
     end)
@@ -36,7 +36,7 @@ else
         end
     end
 
-    hook.Add("InitPostEntity", "LoadSEFSystemClient", function()
+    hook.Add("Initialize", "LoadSEFSystemClient", function()
         LoadSEFFilesClient("SEF")
         LoadSEFFilesClient("SEF_Addon") 
     end)
