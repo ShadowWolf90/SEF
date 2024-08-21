@@ -10,22 +10,12 @@ if SERVER then
     CreateConVar("SEF_LoggingMode", 0, FCVAR_NONE, "Enable displaying logs of SEF", 0, 1)
 
     local ENTITY = FindMetaTable("Entity")
-    local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
     EntActiveEffects = {}
     EntActivePassives = {}
     EntBaseStats = {}
 
-    cvars.AddChangeCallback("SEF_LoggingMode", function(convar_name, old_value, new_value)
-        if tonumber(new_value) == 1 then
-            print("SEF Logging enabled.")
-            SEF_LoggingMode = GetConVar("SEF_LoggingMode")
-        else
-            print("SEF Logging disabled.")
-            SEF_LoggingMode = GetConVar("SEF_LoggingMode")
-        end
-    end)
-
     function ENTITY:ApplyEffect(effectName, time, ...)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         local effect = StatusEffects[effectName]
         if effect and (self:IsPlayer() or self:IsNPC() or self:IsNextBot()) then
 
@@ -84,6 +74,7 @@ if SERVER then
     end
     
     function ENTITY:RemoveEffect(effectName)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         local EntID = self:EntIndex()
         if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
             EntActiveEffects[EntID][effectName] = nil
@@ -109,6 +100,7 @@ if SERVER then
     end
 
     function ENTITY:ApplyPassive(effectName)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         local effect = PassiveEffects[effectName]
         if effect and (self:IsPlayer() or self:IsNPC() or self:IsNextBot()) then
 
@@ -142,13 +134,14 @@ if SERVER then
             end
 
         else
-            if SEF_LoggingMode:GetBool()
+            if SEF_LoggingMode:GetBool() then
                 print("[Status Effect Framework] Passive not found")
-        end
+            end
         end
     end
     
     function ENTITY:RemovePassive(effectName)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         local EntID = self:EntIndex()
         if EntActivePassives[EntID] and EntActivePassives[EntID][effectName] then
             EntActivePassives[EntID][effectName] = nil
@@ -169,6 +162,7 @@ if SERVER then
     end
 
     function ENTITY:SoftRemoveEffect(effectName)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         local EntID = self:EntIndex()
         if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
             if SEF_LoggingMode:GetBool() then
@@ -254,6 +248,7 @@ if SERVER then
 
 
     function BaseStatAdd(ent, stat, value)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         if stat == "MaxHealth" then
             ent:SetMaxHealth(ent:GetMaxHealth() + value)
         elseif stat == "MaxArmor" then
@@ -271,6 +266,7 @@ if SERVER then
     end
     
     function BaseStatRemove(ent, stat, value)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         if stat == "MaxHealth" then
             ent:SetMaxHealth(ent:GetMaxHealth() - value)
         elseif stat == "MaxArmor" then
@@ -288,6 +284,7 @@ if SERVER then
     end
     
     function BaseStatReset(ent, stat)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         if stat == "MaxHealth" then
             ent:SetMaxHealth(EntBaseStats[ent].MaxHealth)
         elseif stat == "MaxArmor" then
@@ -305,6 +302,7 @@ if SERVER then
     end
     
     hook.Add("EntityRemoved", "RemoveEntityBaseStats", function(ent)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         if EntBaseStats[ent] then
             EntBaseStats[ent] = nil
             if SEF_LoggingMode:GetBool() then
@@ -313,7 +311,8 @@ if SERVER then
         end
     end)
 
-    hook.Add("Think", "InitBaseStatsSEF", function() 
+    hook.Add("Think", "InitBaseStatsSEF", function()
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode") 
         for _, ent in ipairs(ents.GetAll()) do
             if ent:IsPlayer() or ent:IsNPC() or ent:IsNextBot() then
                 if not EntBaseStats[ent] then
