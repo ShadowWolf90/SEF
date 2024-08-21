@@ -273,6 +273,9 @@ StatusEffects = {
                     ent.BleedingEffectDelay = CurTime() + BleedDelay
                 end
             end
+        end,
+        EffectEnd = function(ent)
+            ent.BleedingEffectDelay = nil
         end
     },
     Incapacitated = {
@@ -387,6 +390,11 @@ StatusEffects = {
                 ent:DoAnimationEvent(ACT_HL2MP_IDLE_COWER)
             end
         end,
+        Effect = function(ent)
+            if ent:IsPlayer() then
+                ent:SetActiveWeapon(NULL)
+            end
+        end,
         EffectEnd = function(ent)
             if ent:IsPlayer() then
                 ent:DoAnimationEvent(ACT_HL2MP_RUN)
@@ -414,7 +422,6 @@ StatusEffects = {
                     if ply:HaveEffect("Stunned") then
                         local angles = cmd:GetViewAngles()
                         cmd:SetViewAngles(angles)
-                        
                         cmd:SetForwardMove(0)
                         cmd:SetSideMove(0)
                         cmd:SetUpMove(0)
@@ -478,6 +485,118 @@ StatusEffects = {
     
             end
         end
+    },
+    Blindness = {
+        Icon = "SEF_Icons/blind.png",
+        Desc = "You are unable to see.", 
+        Type = "DEBUFF",  
+        ClientHooks = {
+            {
+                HookType = "HUDPaintBackground",
+                HookFunction = function()
+                    local ply = LocalPlayer()
+                    local TimeLeft = ply:GetTimeLeft("Blindness")
+    
+                    if ply:HaveEffect("Blindness") then
+                        local alpha = 255
+                        local fadeStartTime = 0.5
+    
+                        if TimeLeft <= fadeStartTime then
+                            alpha = math.max(0, 255 * (TimeLeft / fadeStartTime))
+                        end
+
+                        surface.SetDrawColor(0, 0, 0, alpha)
+                        surface.DrawRect(0, 0, ScrW(), ScrH())
+                    end
+                end
+            }
+        },
+        ServerHooks = {},
+    },
+    Poison = {
+        Icon = "SEF_Icons/poison.png",
+        Desc = function(damageamount, delay)
+            if delay ~= nil and damageamount ~= nil then
+                return string.format("You are losing %d HP each %g sec. \nYou can't heal.", damageamount, delay)
+            elseif damageamount ~= nil then
+                return string.format("You are losing %d HP each 0.3 sec. \nYou can't heal.", damageamount)
+            elseif delay == nil and damageamount == nil then
+                return string.format("You can't heal.")
+            end
+        end, 
+        Type = "DEBUFF",
+        EffectBegin = function(ent)
+            ent.PoisonEffectHP = ent:Health()
+        end,
+        Effect = function(ent, time, damageamount, inf, delay)
+            local TimeLeft = ent:GetTimeLeft("Poison")
+            if TimeLeft > 0.1 then
+
+                if not ent.PoisonEffectDelay then
+                    ent.PoisonEffectDelay  = CurTime()
+                end
+
+                local PoisonDelay = delay
+                if PoisonDelay == nil then PoisonDelay = 0.3 end
+                if damageamount == nil then damageamount = 0 end
+
+                if ent:HaveEffect("Healing") then
+                    ent:RemoveEffect("Healing")
+                end
+
+                if ent:Health() > ent.PoisonEffectHP then
+                    ent:SetHealth(ent.PoisonEffectHP)
+                elseif ent:Health() <= ent.PoisonEffectHP then
+                    ent.PoisonEffectHP = ent:Health()
+                end
+
+                if CurTime() >= ent.PoisonEffectDelay  then
+                    if IsValid(inf) then
+                        local dmg = DamageInfo()
+                        dmg:SetDamage(damageamount)
+                        dmg:SetInflictor(inf)
+                        dmg:SetAttacker(inf)
+                        ent:TakeDamageInfo(dmg)
+                    else
+                        ent:TakeDamage(damageamount)
+                    end
+
+                    if damageamount > 0 then
+                        ent:EmitSound("npc/antlion_grub/squashed.wav", 100, math.random(70, 135), 1)
+                    end
+
+                    ent.PoisonEffectDelay = CurTime() + PoisonDelay
+                end
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.PoisonEffectDelay = nil
+            ent.PoisonEffectHP = nil
+        end,
+        ClientHooks = {
+            {
+                HookType = "HUDPaintBackground",
+                HookFunction = function()
+                    local ply = LocalPlayer()
+                    local TimeLeft = ply:GetTimeLeft("Poison")
+                    local PoisonMat = Material("SEF_Overlay/SEFPoisonOverlay.png")
+            
+                    if ply:HaveEffect("Poison") then
+                        local alpha = 255
+                        local fadeStartTime = 0.5 -- Czas w sekundach, kiedy zaczyna zanikać
+            
+                        if TimeLeft <= fadeStartTime then
+                            alpha = math.max(0, 255 * (TimeLeft / fadeStartTime))
+                        end
+            
+                        surface.SetMaterial(PoisonMat)
+                        surface.SetDrawColor(255, 255, 255, alpha)
+                        surface.DrawTexturedRect(0, 0, ScrW(), ScrH())
+                    end
+                end
+            }
+        },        
+        ServerHooks = {},
     },
     Template = { --Name and ID of Effect
         Icon = "SEF_Icons/warning.png", --Icon on HUD and displays
