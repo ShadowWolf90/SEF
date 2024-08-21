@@ -256,8 +256,6 @@ if CLIENT then
 
         for effectName, effectData in SortedPairsByMemberValue(ActiveEffects, "Duration", true) do
 
-            local remainingTime = effectData.Duration - (CurTime() - effectData.StartTime)
-
             DrawStatusEffectTimer(StatusEffX , StatusEffY, effectName, effectData.Desc, effectData.Duration, effectData.StartTime)
 
             StatusEffX = StatusEffX + 50

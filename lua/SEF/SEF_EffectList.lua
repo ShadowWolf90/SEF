@@ -382,23 +382,25 @@ StatusEffects = {
         Icon = "SEF_Icons/stunned.png",
         Desc = "You are unable to move or do any action.", 
         Type = "DEBUFF",
+        EffectBegin = function(ent)
+            if ent:IsPlayer() then
+                ent:DoAnimationEvent(ACT_HL2MP_IDLE_COWER)
+            end
+        end,
         Effect = function(ent, time)
             if ent:IsPlayer() then
-
                 if not ent.PlayerStunnedSpeedWalk then
                     ent.PlayerStunnedSpeedWalk = ent:GetWalkSpeed()
                     ent.PlayerStunnedSpeedRun = ent:GetRunSpeed()
-                    ent.PlayerStunnedJumpPower = ent:GetJumpPower()  
+                    ent.PlayerStunnedJumpPower = ent:GetJumpPower()
                 end
-
+    
                 if ent:GetTimeLeft("Stunned") > 0.1 then
-                    ent:DoAnimationEvent(ACT_HL2MP_IDLE_COWER)
                     ent:SetWalkSpeed(1)
                     ent:SetRunSpeed(1)
                     ent:SetJumpPower(0)
                     ent:SetActiveWeapon(NULL)
                 else
-                    ent:DoAnimationEvent(ACT_COWER)
                     if ent.PlayerStunnedSpeedWalk ~= nil then
                         ent:SetWalkSpeed(ent.PlayerStunnedSpeedWalk)
                         ent:SetRunSpeed(ent.PlayerStunnedSpeedRun)
@@ -409,7 +411,43 @@ StatusEffects = {
                     end
                 end
             end
-        end
+        end,
+        EffectEnd = function(ent)
+            if ent:IsPlayer() then
+                ent:DoAnimationEvent(ACT_HL2MP_RUN)
+            end
+        end,
+        ClientHooks = {
+            {
+                HookType = "CalcView",
+                HookFunction = function(ply, pos, angles, fov)
+                    if IsValid(ply) and ply:HaveEffect("Stunned") then
+                        local view = {
+                            origin = pos - (angles:Forward() * 100) + Vector(0, 0, 10),
+                            angles = angles,
+                            fov = fov,
+                            drawviewer = true
+                        }
+                        return view
+                    end
+                end,
+            },
+            {
+                HookType = "CreateMove",
+                HookFunction = function(cmd)
+                    local ply = LocalPlayer()
+                    if ply:HaveEffect("Stunned") then
+                        local angles = cmd:GetViewAngles()
+                        cmd:SetViewAngles(angles)
+                        
+                        cmd:SetForwardMove(0)
+                        cmd:SetSideMove(0)
+                        cmd:SetUpMove(0)
+                        cmd:SetViewAngles(angles)
+                    end
+                end,
+            },
+        },
     },
     Wither = {
         Name = "Withering",

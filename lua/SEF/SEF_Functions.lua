@@ -7,11 +7,23 @@ if SERVER then
     util.AddNetworkString("StatusEffectUpdateData")
     util.AddNetworkString("StatusEffectPassiveAdd")
     util.AddNetworkString("StatusEffectPassiveRemove")
+    CreateConVar("SEF_LoggingMode", 0, FCVAR_NONE, "Enable displaying logs of SEF", 0, 1)
 
     local ENTITY = FindMetaTable("Entity")
+    local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
     EntActiveEffects = {}
     EntActivePassives = {}
     EntBaseStats = {}
+
+    cvars.AddChangeCallback("SEF_LoggingMode", function(convar_name, old_value, new_value)
+        if tonumber(new_value) == 1 then
+            print("SEF Logging enabled.")
+            SEF_LoggingMode = GetConVar("SEF_LoggingMode")
+        else
+            print("SEF Logging disabled.")
+            SEF_LoggingMode = GetConVar("SEF_LoggingMode")
+        end
+    end)
 
     function ENTITY:ApplyEffect(effectName, time, ...)
         local effect = StatusEffects[effectName]
@@ -20,12 +32,16 @@ if SERVER then
             local EntID = self:EntIndex()
 
             if not EntActiveEffects[EntID] then
-                print("[Status Effect Framework] Status Effect Table created for entity:", self)
+                if SEF_LoggingMode:GetBool() then
+                    print("[Status Effect Framework] Status Effect Table created for entity:", self)
+                end
                 EntActiveEffects[EntID] = {}
             end
 
             if not EntActiveEffects[EntID][effectName] then
-                print("[Status Effect Framework] Applied Effect:", effectName, "to entity:", self)
+                if SEF_LoggingMode:GetBool() then
+                    print("[Status Effect Framework] Applied Effect:", effectName, "to entity:", self)
+                end
             end
 
             local args = {...}
@@ -61,7 +77,9 @@ if SERVER then
             net.Broadcast()
 
         else
-            print("[Status Effect Framework] Effect not found")
+            if SEF_LoggingMode:GetBool() then
+                print("[Status Effect Framework] Effect not found")
+            end
         end
     end
     
@@ -69,7 +87,9 @@ if SERVER then
         local EntID = self:EntIndex()
         if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
             EntActiveEffects[EntID][effectName] = nil
-            print("[Status Effect Framework] Removed Effect", effectName, "from entity:", self)
+            if SEF_LoggingMode:GetBool() then
+                print("[Status Effect Framework] Removed Effect", effectName, "from entity:", self)
+            end
 
             if self:IsPlayer() then
                 net.Start("StatusEffectRemove")
@@ -82,7 +102,9 @@ if SERVER then
             net.WriteString(effectName)
             net.Broadcast()
         else
-            print("[Status Effect Framework] Effect not active or not found:", effectName)
+            if SEF_LoggingMode:GetBool() then
+                print("[Status Effect Framework] Effect not active or not found:", effectName)
+            end
         end
     end
 
@@ -93,12 +115,16 @@ if SERVER then
             local EntID = self:EntIndex()
 
             if not EntActivePassives[EntID] then
-                print("[Status Effect Framework] Passives Effect Table created for entity:", self)
+                if SEF_LoggingMode:GetBool() then
+                    print("[Status Effect Framework] Passives Effect Table created for entity:", self)
+                end
                 EntActivePassives[EntID] = {}
             end
 
             if not EntActivePassives[EntID][effectName] then
-                print("[Status Effect Framework] Applied Passive Effect:", effectName, "to entity:", self)
+                if SEF_LoggingMode:GetBool() then
+                    print("[Status Effect Framework] Applied Passive Effect:", effectName, "to entity:", self)
+                end
             end
 
             EntActivePassives[EntID][effectName] = {
@@ -116,7 +142,9 @@ if SERVER then
             end
 
         else
-            print("[Status Effect Framework] Passive not found")
+            if SEF_LoggingMode:GetBool()
+                print("[Status Effect Framework] Passive not found")
+        end
         end
     end
     
@@ -124,7 +152,9 @@ if SERVER then
         local EntID = self:EntIndex()
         if EntActivePassives[EntID] and EntActivePassives[EntID][effectName] then
             EntActivePassives[EntID][effectName] = nil
-            print("[Status Effect Framework] Removed Passive", effectName, "from entity:", self)
+            if SEF_LoggingMode:GetBool() then
+                print("[Status Effect Framework] Removed Passive", effectName, "from entity:", self)
+            end
 
             if self:IsPlayer() then
                 net.Start("StatusEffectPassiveRemove")
@@ -132,14 +162,18 @@ if SERVER then
                 net.Send(self)
             end
         else
-            print("[Status Effect Framework] Passive not active or not found:", effectName)
+            if SEF_LoggingMode:GetBool() then
+                print("[Status Effect Framework] Passive not active or not found:", effectName)
+            end
         end
     end
 
     function ENTITY:SoftRemoveEffect(effectName)
         local EntID = self:EntIndex()
         if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
-            print("[Status Effect Framework] Softremoved Effect", effectName, "from entity:", self)
+            if SEF_LoggingMode:GetBool() then
+                print("[Status Effect Framework] Softremoved Effect", effectName, "from entity:", self)
+            end
             EntActiveEffects[EntID][effectName].Duration = 1
 
             if self:IsPlayer() then
@@ -157,7 +191,9 @@ if SERVER then
             net.WriteFloat(CurTime())
             net.Broadcast()
         else
-            print("[Status Effect Framework] Effect not active or not found:", effectName)
+            if SEF_LoggingMode:GetBool() then
+                print("[Status Effect Framework] Effect not active or not found:", effectName)
+            end
         end
     end
 
@@ -229,7 +265,9 @@ if SERVER then
         elseif stat == "JumpPower" then
             ent:SetJumpPower(ent:GetJumpPower() + value)
         end
-        print("[BaseStats System] Added " .. value .. " to statistic: " .. stat .. " on entity: " .. tostring(ent))
+        if SEF_LoggingMode:GetBool() then
+            print("[BaseStats System] Added " .. value .. " to statistic: " .. stat .. " on entity: " .. tostring(ent))
+        end
     end
     
     function BaseStatRemove(ent, stat, value)
@@ -244,7 +282,9 @@ if SERVER then
         elseif stat == "JumpPower" then
             ent:SetJumpPower(ent:GetJumpPower() - value)
         end
-        print("[BaseStats System] Removed " .. value .. " from statistic: " .. stat .. " on entity: " .. tostring(ent))
+        if SEF_LoggingMode:GetBool() then
+            print("[BaseStats System] Removed " .. value .. " from statistic: " .. stat .. " on entity: " .. tostring(ent))
+        end
     end
     
     function BaseStatReset(ent, stat)
@@ -259,14 +299,17 @@ if SERVER then
         elseif stat == "JumpPower" then
             ent:SetJumpPower(EntBaseStats[ent].JumpPower)
         end
-
-        print("[BaseStats System] Statistic " .. stat .. " has been reset on entity: " .. tostring(ent))
+        if SEF_LoggingMode:GetBool() then
+            print("[BaseStats System] Statistic " .. stat .. " has been reset on entity: " .. tostring(ent))
+        end
     end
     
     hook.Add("EntityRemoved", "RemoveEntityBaseStats", function(ent)
         if EntBaseStats[ent] then
             EntBaseStats[ent] = nil
-            --PrintMessage(HUD_PRINTTALK, "Removed Base Stats for: " .. tostring(ent))
+            if SEF_LoggingMode:GetBool() then
+                PrintMessage(HUD_PRINTTALK, "Removed Base Stats for: " .. tostring(ent))
+            end
         end
     end)
 
@@ -275,8 +318,9 @@ if SERVER then
             if ent:IsPlayer() or ent:IsNPC() or ent:IsNextBot() then
                 if not EntBaseStats[ent] then
                     InitEntityBaseStats(ent)
-                    --PrintMessage(HUD_PRINTTALK, "Created Base Stats for: " .. tostring(ent))
-                    --PrintTable(EntBaseStats)
+                    if SEF_LoggingMode:GetBool() then
+                        PrintMessage(HUD_PRINTTALK, "Created Base Stats for: " .. tostring(ent))
+                    end
                 end
             end
         end

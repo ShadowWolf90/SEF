@@ -59,7 +59,7 @@ if SERVER then
             if effect and effectData.ServerHooks then
                 for index, hookData in ipairs(effectData.ServerHooks) do
                     if hookData.HookType then
-                        local hookID = effect .. "ServerStatusEffectHookManager" .. tostring(index)
+                        local hookID = effect .. "SEF_ES_" .. tostring(index)
                         
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
@@ -90,7 +90,7 @@ if SERVER then
             if passive and PassiveData.ServerHooks then
                 for index, hookData in ipairs(PassiveData.ServerHooks) do
                     if hookData.HookType ~= "" then
-                        local hookID = passive .. "ServerPassiveEffectHookManager" .. tostring(index)
+                        local hookID = passive .. "SEF_PS_" .. tostring(index)
     
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
@@ -143,29 +143,24 @@ if SERVER then
     end, nil, "Reloads or creates all SEF hooks.")
 else
     local function CreateClientEffectHooks()
-        -- Przetwarzanie efektów
         for effect, effectData in pairs(StatusEffects) do
             if effect and effectData.ClientHooks then
                 for index, hookData in ipairs(effectData.ClientHooks) do
                     if hookData.HookType then
-                        local hookID = effect .. "ClientStatusEffectHookManager" .. tostring(index)
+                        local hookID = "!" .. effect .. "SEF_EC_" .. tostring(index)
                         
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
     
                             print("[Status Effect Framework] Effect Hook has been created: " .. effect .. " Hook: " .. hookID)
     
-                            hook.Add(hookData.HookType, hookID, function(...)
-                                hookData.HookFunction(...)
-                            end)
+                            hook.Add(hookData.HookType, hookID, hookData.HookFunction)
     
                             hookData.HookInit = true
                         elseif hookData.LastHookFunction ~= hookData.HookFunction then
                             print("[Status Effect Framework] Updating Hook Function for: " .. effect .. " Hook: " .. hookID)
     
-                            hook.Add(hookData.HookType, hookID, function(...)
-                                hookData.HookFunction(...)
-                            end)
+                            hook.Add(hookData.HookType, hookID, hookData.HookFunction)
     
                             hookData.LastHookFunction = hookData.HookFunction
                         end
@@ -179,24 +174,20 @@ else
             if passive and PassiveData.ClientHooks then
                 for index, hookData in ipairs(PassiveData.ClientHooks) do
                     if hookData.HookType ~= "" then
-                        local hookID = passive .. "ClientPassiveEffectHookManager" .. tostring(index)
+                        local hookID = "!" .. passive .. "SEF_PC_" .. tostring(index)
     
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
     
                             print("[Status Effect Framework] Client Passive Hook has been created: " .. passive .. " Hook: " .. hookID)
     
-                            hook.Add(hookData.HookType, hookID, function(...)
-                                hookData.HookFunction(...)
-                            end)
+                            hook.Add(hookData.HookType, hookID, hookData.HookFunction)
     
                             hookData.HookInit = true
                         elseif hookData.LastHookFunction ~= hookData.HookFunction then
                             print("[Status Effect Framework] Client Updating Hook Function for: " .. passive .. " Hook: " .. hookID)
     
-                            hook.Add(hookData.HookType, hookID, function(...)
-                                hookData.HookFunction(...)
-                            end)
+                            hook.Add(hookData.HookType, hookID, hookData.HookFunction)
     
                             hookData.LastHookFunction = hookData.HookFunction
                         end
