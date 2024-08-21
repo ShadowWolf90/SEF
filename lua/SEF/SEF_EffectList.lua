@@ -387,31 +387,6 @@ StatusEffects = {
                 ent:DoAnimationEvent(ACT_HL2MP_IDLE_COWER)
             end
         end,
-        Effect = function(ent, time)
-            if ent:IsPlayer() then
-                if not ent.PlayerStunnedSpeedWalk then
-                    ent.PlayerStunnedSpeedWalk = ent:GetWalkSpeed()
-                    ent.PlayerStunnedSpeedRun = ent:GetRunSpeed()
-                    ent.PlayerStunnedJumpPower = ent:GetJumpPower()
-                end
-    
-                if ent:GetTimeLeft("Stunned") > 0.1 then
-                    ent:SetWalkSpeed(1)
-                    ent:SetRunSpeed(1)
-                    ent:SetJumpPower(0)
-                    ent:SetActiveWeapon(NULL)
-                else
-                    if ent.PlayerStunnedSpeedWalk ~= nil then
-                        ent:SetWalkSpeed(ent.PlayerStunnedSpeedWalk)
-                        ent:SetRunSpeed(ent.PlayerStunnedSpeedRun)
-                        ent:SetJumpPower(ent.PlayerStunnedJumpPower)
-                        ent.PlayerStunnedSpeedWalk = nil
-                        ent.PlayerStunnedSpeedRun = nil
-                        ent.PlayerStunnedJumpPower = nil 
-                    end
-                end
-            end
-        end,
         EffectEnd = function(ent)
             if ent:IsPlayer() then
                 ent:DoAnimationEvent(ACT_HL2MP_RUN)
