@@ -125,6 +125,7 @@ if SERVER then
         if IsValid(victim) and EntActiveEffects[victim:EntIndex()] then
             for effectName, _ in pairs(EntActiveEffects[victim:EntIndex()]) do
                 victim:RemoveEffect(effectName)
+                victim:ClearSEFStacks()
             end
         end
     end)
