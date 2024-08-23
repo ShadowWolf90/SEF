@@ -1,39 +1,47 @@
 if SERVER then
 
-    util.AddNetworkString("StatusEffectAdd")
-    util.AddNetworkString("StatusEffectRemove")
-    util.AddNetworkString("StatusEffectEntityAdd")
-    util.AddNetworkString("StatusEffectEntityRemove")
-    util.AddNetworkString("StatusEffectUpdateData")
-    util.AddNetworkString("StatusEffectPassiveAdd")
-    util.AddNetworkString("StatusEffectPassiveRemove")
+    util.AddNetworkString("SEF_AddEffect")
+    util.AddNetworkString("SEF_RemoveEffect")
+    util.AddNetworkString("SEF_EntityAdd")
+    util.AddNetworkString("SEF_EntityRemove")
+    util.AddNetworkString("SEF_UpdateData")
+    util.AddNetworkString("SEF_UpdateDesc")
+    util.AddNetworkString("SEF_AddPassive")
+    util.AddNetworkString("SEF_RemovePassive")
+    util.AddNetworkString("SEF_StackSystem")
+
     CreateConVar("SEF_LoggingMode", 0, FCVAR_NONE, "Enable displaying logs of SEF", 0, 1)
 
     local ENTITY = FindMetaTable("Entity")
     EntActiveEffects = {}
     EntActivePassives = {}
     EntBaseStats = {}
+    EntEffectStacks = {}
+    EntPassiveStacks = {}
+
+
+    // CORE SEF FUNCTIONS
 
     function ENTITY:ApplyEffect(effectName, time, ...)
         local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
         local effect = StatusEffects[effectName]
         if effect and (self:IsPlayer() or self:IsNPC() or self:IsNextBot()) then
-
+    
             local EntID = self:EntIndex()
-
+    
             if not EntActiveEffects[EntID] then
                 if SEF_LoggingMode:GetBool() then
                     print("[Status Effect Framework] Status Effect Table created for entity:", self)
                 end
                 EntActiveEffects[EntID] = {}
             end
-
+    
             if not EntActiveEffects[EntID][effectName] then
                 if SEF_LoggingMode:GetBool() then
                     print("[Status Effect Framework] Applied Effect:", effectName, "to entity:", self)
                 end
             end
-
+    
             local args = {...}
             EntActiveEffects[EntID][effectName] = {
                 Function = effect.Effect,
@@ -43,35 +51,44 @@ if SERVER then
                 Duration = time,
                 Args = args
             }
-
+    
             local DynDesc
             if isfunction(effect.Desc) then
-                DynDesc = effect.Desc(unpack(args))
+                if effect.Stackable then
+                    local argsCopy = { unpack(args) }
+                    table.insert(argsCopy, #argsCopy, self:GetSEFStacks(effectName))
+                    DynDesc = effect.Desc(unpack(argsCopy))
+                    print(unpack(argsCopy))
+                else
+                    DynDesc = effect.Desc(unpack(args))
+                end
             else
                 DynDesc = effect.Desc
-            end 
-
+            end
+    
             if self:IsPlayer() then
-                net.Start("StatusEffectAdd")
+                net.Start("SEF_AddEffect")
                 net.WriteString(effectName)
                 net.WriteString(DynDesc)
                 net.WriteFloat(time)
                 net.Send(self)
             end
-
-            net.Start("StatusEffectEntityAdd")
+    
+            net.Start("SEF_EntityAdd")
             net.WriteInt(self:EntIndex(), 32)
             net.WriteString(effectName)
             net.WriteFloat(time)
             net.WriteFloat(CurTime())
             net.Broadcast()
-
+    
         else
             if SEF_LoggingMode:GetBool() then
                 print("[Status Effect Framework] Effect not found")
             end
         end
     end
+    
+    
     
     function ENTITY:RemoveEffect(effectName)
         local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
@@ -83,12 +100,12 @@ if SERVER then
             end
 
             if self:IsPlayer() then
-                net.Start("StatusEffectRemove")
+                net.Start("SEF_RemoveEffect")
                 net.WriteString(effectName)
                 net.Send(self)
             end
 
-            net.Start("StatusEffectEntityRemove")
+            net.Start("SEF_EntityRemove")
             net.WriteInt(self:EntIndex(), 32)
             net.WriteString(effectName)
             net.Broadcast()
@@ -127,7 +144,7 @@ if SERVER then
 
 
             if self:IsPlayer() then
-                net.Start("StatusEffectPassiveAdd")
+                net.Start("SEF_AddPassive")
                 net.WriteString(effectName)
                 net.WriteString(DynDesc)
                 net.Send(self)
@@ -150,7 +167,7 @@ if SERVER then
             end
 
             if self:IsPlayer() then
-                net.Start("StatusEffectPassiveRemove")
+                net.Start("SEF_RemovePassive")
                 net.WriteString(effectName)
                 net.Send(self)
             end
@@ -171,14 +188,14 @@ if SERVER then
             EntActiveEffects[EntID][effectName].Duration = 1
 
             if self:IsPlayer() then
-                net.Start("StatusEffectAdd")
+                net.Start("SEF_AddEffect")
                 net.WriteString(effectName)
                 net.WriteString("Effect is wearing off.")
                 net.WriteFloat(1)
                 net.Send(self)
             end
 
-            net.Start("StatusEffectEntityAdd")
+            net.Start("SEF_EntityAdd")
             net.WriteInt(self:EntIndex(), 32)
             net.WriteString(effectName)
             net.WriteFloat(1)
@@ -225,7 +242,7 @@ if SERVER then
             local effectData = EntActiveEffects[EntID][effectName]
             effectData.Duration = time
 
-            net.Start("StatusEffectUpdateData")
+            net.Start("SEF_UpdateData")
             net.WriteInt(EntID, 32)
             net.WriteString(effectName)
             net.WriteFloat(time)
@@ -298,6 +315,208 @@ if SERVER then
         end
         if SEF_LoggingMode:GetBool() then
             print("[BaseStats System] Statistic " .. stat .. " has been reset on entity: " .. tostring(ent))
+        end
+    end
+
+    // STACK SYSTEM FUNCTIONS
+
+    function ENTITY:AddSEFStacks(effect, amount)
+        amount = amount or 1
+    
+        local effectData = StatusEffects[effect] or PassiveEffects[effect]
+    
+        -- Sprawdzenie, czy efekt/pasywka istnieje i czy jest stackowalna
+        if not effectData or not effectData.Stackable then
+            print("[Status Effect Framework] Effect or passive is not stackable or does not exist: ", effect)
+            return
+        end
+    
+        if StatusEffects[effect] then
+            EntEffectStacks[self] = EntEffectStacks[self] or {}
+            EntEffectStacks[self][effect] = (EntEffectStacks[self][effect] or 0) + amount
+
+            if self:IsPlayer() then
+                net.Start("SEF_StackSystem")
+                net.WriteString("ADD")
+                net.WriteString(effect)
+                net.WriteInt(amount, 32)
+                net.Send(self)
+            end
+
+        elseif PassiveEffects[effect] then
+            EntPassiveStacks[self] = EntPassiveStacks[self] or {}
+            EntPassiveStacks[self][effect] = (EntPassiveStacks[self][effect] or 0) + amount
+
+            if self:IsPlayer() then
+                net.Start("SEF_StackSystem")
+                net.WriteString("ADD")
+                net.WriteString(effect)
+                net.WriteInt(amount, 32)
+                net.Send(self)
+            end
+        else
+            print("[Status Effect Framework] Effect or passive not found:", effect)
+            return
+        end
+    end
+
+    function ENTITY:SetSEFStacks(effect, amount)
+        local effectData = StatusEffects[effect] or PassiveEffects[effect]
+    
+        -- Sprawdzenie, czy efekt/pasywka istnieje i czy jest stackowalna
+        if not effectData or not effectData.Stackable then
+            print("[Status Effect Framework] Effect or passive is not stackable or does not exist: ", effect)
+            return
+        end
+    
+        if StatusEffects[effect] then
+            EntEffectStacks[self] = EntEffectStacks[self] or {}
+            EntEffectStacks[self][effect] = amount
+
+            if self:IsPlayer() then
+                net.Start("SEF_StackSystem")
+                net.WriteString("SET")
+                net.WriteString(effect)
+                net.WriteInt(amount, 32)
+                net.Send(self)
+            end
+
+        elseif PassiveEffects[effect] then
+            EntPassiveStacks[self] = EntPassiveStacks[self] or {}
+            EntPassiveStacks[self][effect] = amount
+
+            if self:IsPlayer() then
+                net.Start("SEF_StackSystem")
+                net.WriteString("SET")
+                net.WriteString(effect)
+                net.WriteInt(amount, 32)
+                net.Send(self)
+            end
+        else
+            print("[Status Effect Framework] Effect or passive not found:", effect)
+            return
+        end
+    end
+    
+    
+    
+    function ENTITY:RemoveSEFStacks(effect, amount)
+        amount = amount or 1
+
+        local effectData = StatusEffects[effect] or PassiveEffects[effect]
+        if not effectData or not effectData.Stackable then
+            print("[Status Effect Framework] Effect or passive is not stackable or does not exist: ", effect)
+            return
+        end
+    
+        if StatusEffects[effect] then
+            if EntEffectStacks[self] and EntEffectStacks[self][effect] then
+                EntEffectStacks[self][effect] = EntEffectStacks[self][effect] - amount
+                if EntEffectStacks[self][effect] <= 0 then
+                    EntEffectStacks[self][effect] = nil
+                end
+            end
+
+            if self:IsPlayer() then
+                net.Start("SEF_StackSystem")
+                net.WriteString("REMOVE")
+                net.WriteString(effect)
+                net.WriteInt(amount, 32)
+                net.Send(self)
+                net.Abort()
+            end
+
+        elseif PassiveEffects[effect] then
+            if EntPassiveStacks[self] and EntPassiveStacks[self][effect] then
+                EntPassiveStacks[self][effect] = EntPassiveStacks[self][effect] - amount
+                if EntPassiveStacks[self][effect] <= 0 then
+                    EntPassiveStacks[self][effect] = nil
+                end
+            end
+
+            if self:IsPlayer() then
+                net.Start("SEF_StackSystem")
+                net.WriteString("REMOVE")
+                net.WriteString(effect)
+                net.WriteInt(amount, 32)
+                net.Send(self)
+                net.Abort()
+            end
+        else
+            print("Effect or passive not found:", effect)
+        end
+    end
+    
+    function ENTITY:ResetSEFStacks(effect)
+
+        local effectData = StatusEffects[effect] or PassiveEffects[effect]
+        if not effectData or not effectData.Stackable then
+            print("[Status Effect Framework] Effect or passive is not stackable or does not exist: ", effect)
+            return
+        end
+
+        if StatusEffects[effect] then
+            if EntEffectStacks[self] then
+                EntEffectStacks[self][effect] = nil
+
+                if self:IsPlayer() then
+                    net.Start("SEF_StackSystem")
+                    net.WriteString("CLEAR")
+                    net.WriteString(effect)
+                    net.WriteInt(0, 32)
+                    net.Send(self)
+                    net.Abort()
+                end
+
+            end
+        elseif PassiveEffects[effect] then
+            if EntPassiveStacks[self] then
+                EntPassiveStacks[self][effect] = nil
+
+                if self:IsPlayer() then
+                    net.Start("SEF_StackSystem")
+                    net.WriteString("CLEAR")
+                    net.WriteString(effect)
+                    net.WriteInt(0, 32)
+                    net.Send(self)
+                    net.Abort()
+                end
+
+            end
+        else
+            print("Effect or passive not found:", effect)
+        end
+    end
+    
+    function ENTITY:ClearSEFStacks()
+        EntEffectStacks[self] = nil
+        EntPassiveStacks[self] = nil
+
+        if self:IsPlayer() then
+            net.Start("SEF_StackSystem")
+            net.WriteString("CLEARALL")
+            net.WriteString("0")
+            net.WriteInt(0, 32)
+            net.Send(self)
+            net.Abort()
+        end
+    end
+    
+    function ENTITY:GetSEFStacks(effect)
+
+        local effectData = StatusEffects[effect] or PassiveEffects[effect]
+        if not effectData or not effectData.Stackable then
+            print("[Status Effect Framework] Effect or passive is not stackable or does not exist: ", effect)
+            return
+        end
+
+        if StatusEffects[effect] then
+            return (EntEffectStacks[self] and EntEffectStacks[self][effect]) or 0
+        elseif PassiveEffects[effect] then
+            return (EntPassiveStacks[self] and EntPassiveStacks[self][effect]) or 0
+        else
+            print("Effect or passive not found:", effect)
+            return 0
         end
     end
     
@@ -440,6 +659,19 @@ else
         else
             return 0 
         end
+    end
+
+    function PLAYERCLIENT:GetSEFStacks(effectName)
+
+        if PlayerEffectStacks[effectName] then
+            return PlayerEffectStacks[effectName]
+        end
+
+        if PlayerPassiveStacks[effectName] then
+            return PlayerPassiveStacks[effectName]
+        end
+        
+        return 0
     end
     
 end

@@ -3,7 +3,27 @@ if CLIENT then
     local ply = LocalPlayer()
     ActiveEffects = {}
     ActivePassives = {}
+    PlayerEffectStacks = {}
+    PlayerPassiveStacks = {}
     AllEntEffects = {}
+
+    surface.CreateFont("SEFFont", {
+        font = "Stratum2 Md",
+        size = 20,
+        weight = 500,
+        antialias = true,
+        outline = false,
+        shadow = true
+    })
+
+    surface.CreateFont("SEFFontSmall", {
+        font = "Stratum2 Md",
+        size = 15,
+        weight = 500,
+        antialias = true,
+        outline = false,
+        shadow = true
+    })
 
     CreateClientConVar("SEF_StatusEffectX", 50, true, false, "X position of Status Effects applied on you.", 0, ScrW())
     CreateClientConVar("SEF_StatusEffectY", 925, true, false, "Y position of Status Effects applied on you.", 0, ScrH())
@@ -18,7 +38,7 @@ if CLIENT then
     local function DrawStatusEffectTimer(x, y, effectName, effectDesc, duration, startTime)
         local effect = StatusEffects[effectName]
         if not effect then return end
-    
+
         local mouseX = gui.MouseX()
         local mouseY = gui.MouseY()
         ScaleUI = GetConVar("SEF_ScaleUI"):GetFloat()
@@ -33,7 +53,7 @@ if CLIENT then
         if centerX + radius > ScrW() then centerX = ScrW() - radius end
         if centerY + radius > ScrH() then centerY = ScrH() - radius end
     
-        surface.SetFont("TargetIDSmall")
+        surface.SetFont("SEFFont")
     
         local FormattedName = effect.Name or SplitCamelCase(effectName)
     
@@ -45,6 +65,25 @@ if CLIENT then
         local DurW, DurH = surface.GetTextSize("Duration: " .. duration .. " seconds")
         local TotalWidth = math.max(NameW, DurW, DescW)
         local TotalHeight = NameH + DurH + DescH
+        local StackAmount
+        local StackName
+        local StackWidth, StackHeight
+        local StackNumberWidth, StackNumberHeight
+        if PlayerEffectStacks[effectName] then
+            StackAmount = PlayerEffectStacks[effectName]
+            if effect.StackName then
+                StackName = tostring(effect.StackName)
+            else
+                StackName = "Stacks"
+            end
+            StackWidth, StackHeight = surface.GetTextSize(StackName)
+            StackNumberWidth, StackNumberHeight = surface.GetTextSize(StackAmount)
+        else
+            StackAmount = 0
+            StackName = nil
+            StackWidth, StackHeight = nil
+            StackNumberWidth, StackNumberHeight = nil
+        end
     
         local icon = Material(effect.Icon)
     
@@ -105,16 +144,21 @@ if CLIENT then
         surface.DrawTexturedRect(centerX - 16 * ScaleUI, centerY - 16 * ScaleUI, 32 * ScaleUI, 32 * ScaleUI)
     
         local remainingTime = duration - (CurTime() - startTime)
-        draw.SimpleText(math.Round(remainingTime), "TargetIDSmall", centerX, centerY + 24 * ScaleUI, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
+        draw.SimpleText(math.Round(remainingTime), "SEFFont", centerX, centerY + 24 * ScaleUI, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
+        if StackAmount > 1 then
+            surface.SetDrawColor(0, 0, 0, 200)
+            surface.DrawRect(centerX - StackNumberWidth + 5, centerY + 40 * ScaleUI, StackWidth + StackNumberWidth, StackHeight)
+            draw.SimpleText(StackName .. ": " .. StackAmount, "SEFFontSmall", centerX, centerY + 42 * ScaleUI, Color(251, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
+        end
     
         if mouseX >= centerX - 16 * ScaleUI and mouseX <= centerX + 16 * ScaleUI and mouseY >= centerY - 16 * ScaleUI and mouseY <= centerY + 16 * ScaleUI then
-            surface.SetDrawColor(0, 0, 0, 155)
+            surface.SetDrawColor(0, 0, 0, 200)
             surface.DrawRect(mouseX, mouseY + 30, (TotalWidth + 10), TotalHeight)
-            draw.SimpleText(FormattedName, "TargetIDSmall", mouseX + 5, mouseY + 30, Color(255,208,0), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+            draw.SimpleText(FormattedName, "SEFFont", mouseX + 5, mouseY + 30, Color(255,208,0), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
             if DescH > 0 then
-                draw.DrawText(effectDesc, "TargetIDSmall", mouseX + 5, mouseY + 30 + NameH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+                draw.DrawText(effectDesc, "SEFFont", mouseX + 5, mouseY + 30 + NameH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
             end
-            draw.SimpleText("Duration: " .. duration .." seconds", "TargetIDSmall", mouseX + 5, mouseY + 45 + DescH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+            draw.SimpleText("Duration: " .. duration .." seconds", "SEFFont", mouseX + 5, mouseY + 45 + DescH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
         end
     end
     
@@ -186,7 +230,7 @@ if CLIENT then
         local centerX = x * ScaleUI
         local centerY = y * ScaleUI
     
-        surface.SetFont("TargetIDSmall")
+        surface.SetFont("SEFFont")
     
         local FormattedName = effect.Name or SplitCamelCase(passiveName)
     
@@ -198,6 +242,19 @@ if CLIENT then
         end
         local TotalWidth = math.max(NameW, DescW)
         local TotalHeight = (NameH + DescH)
+        local StackAmount
+        if PlayerPassiveStacks[effectName] then
+            StackAmount = PlayerEffectStacks[effectName]
+            if effect.StackName then
+                StackName = tostring(effect.StackName)
+            else
+                StackName = "Stacks"
+            end
+        else
+            StackAmount = 0
+            StackName = nil
+        end
+
     
         -- Sprawdzanie granic ekranu
         local halfIconSize = 16 * ScaleUI
@@ -217,15 +274,19 @@ if CLIENT then
         surface.SetMaterial(icon)
         surface.SetDrawColor(255, 255, 255, 255)
         surface.DrawTexturedRect(centerX - halfIconSize, centerY - halfIconSize, 32 * ScaleUI, 32 * ScaleUI)
+
+        if StackAmount > 1 then
+            draw.SimpleText(StackName .. ": " .. StackAmount, "SEFFontSmall", centerX, centerY + 38 * ScaleUI, Color(251, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
+        end
     
         -- Sprawdzanie pozycji myszy
         if mouseX >= centerX - halfIconSize and mouseX <= centerX + halfIconSize and mouseY >= centerY - halfIconSize and mouseY <= centerY + halfIconSize then
             surface.SetDrawColor(0, 0, 0, 155)
             surface.DrawRect(mouseX, mouseY + 30, (TotalWidth + 10), (TotalHeight + 15))
-            draw.SimpleText(FormattedName, "TargetIDSmall", mouseX + 5, mouseY + 30, Color(0,162,255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-            draw.SimpleText("[Passive]", "TargetIDSmall", mouseX + 5, mouseY + 45, Color(0,162,255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+            draw.SimpleText(FormattedName, "SEFFont", mouseX + 5, mouseY + 30, Color(0,162,255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+            draw.SimpleText("[Passive]", "SEFFont", mouseX + 5, mouseY + 45, Color(0,162,255), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
             if DescH > 0 then
-                draw.DrawText(passiveDesc, "TargetIDSmall", mouseX + 5, mouseY + 45 + NameH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+                draw.DrawText(passiveDesc, "SEFFont", mouseX + 5, mouseY + 45 + NameH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
             end
         end
     end
@@ -318,7 +379,7 @@ if CLIENT then
     end
 
 
-    net.Receive("StatusEffectAdd", function()
+    net.Receive("SEF_AddEffect", function()
         local EffectName = net.ReadString()
         local Desc = net.ReadString()
         local Duration = net.ReadFloat()
@@ -334,13 +395,13 @@ if CLIENT then
         ActiveEffects[EffectName] = StatusEntry
     end)
 
-    net.Receive("StatusEffectRemove", function()
+    net.Receive("SEF_RemoveEffect", function()
         local EffectName = net.ReadString()
         ActiveEffects[EffectName] = nil
     end)
     
 
-    net.Receive("StatusEffectEntityAdd", function()
+    net.Receive("SEF_EntityAdd", function()
         local EntID = net.ReadInt(32)
         local EffectName = net.ReadString()
         local Duration = net.ReadFloat()
@@ -356,7 +417,7 @@ if CLIENT then
         }
     end)
 
-    net.Receive("StatusEffectEntityRemove", function()
+    net.Receive("SEF_EntityRemove", function()
         local EntID = net.ReadInt(32)
         local EffectName = net.ReadString()
 
@@ -370,7 +431,7 @@ if CLIENT then
         end
     end)
 
-    net.Receive("StatusEffectUpdateData", function()
+    net.Receive("SEF_UpdateData", function()
         local EntID = net.ReadInt(32)
         local EffectName = net.ReadString()
         local ChangedTime = net.ReadFloat()
@@ -386,7 +447,7 @@ if CLIENT then
         end
     end)
 
-    net.Receive("StatusEffectPassiveAdd", function() 
+    net.Receive("SEF_AddPassive", function() 
 
         local PassiveName = net.ReadString()
         local PassiveDesc = net.ReadString()
@@ -400,11 +461,69 @@ if CLIENT then
     
     end)
 
-    net.Receive("StatusEffectPassiveRemove", function() 
+    net.Receive("SEF_RemovePassive", function() 
     
         local PassiveName = net.ReadString()
         ActivePassives[PassiveName] = nil
     
+    end)
+
+    net.Receive("SEF_StackSystem", function() 
+        local command = net.ReadString()
+        local effect = net.ReadString()
+        local stacks = net.ReadInt(32)
+    
+        if command == "ADD" then
+            if StatusEffects[effect] then
+                PlayerEffectStacks[effect] = (PlayerEffectStacks[effect] or 0) + stacks
+            elseif PassiveEffects[effect] then
+                PlayerPassiveStacks[effect] = (PlayerPassiveStacks[effect] or 0) + stacks
+            end
+        elseif command == "SET" then
+            if StatusEffects[effect] then
+                PlayerEffectStacks[effect] = stacks
+            elseif PassiveEffects[effect] then
+                PlayerPassiveStacks[effect] =  stacks
+            end
+        elseif command == "REMOVE" then
+            if StatusEffects[effect] then
+                if PlayerEffectStacks[effect] then
+                    PlayerEffectStacks[effect] = PlayerEffectStacks[effect] - stacks
+                    if PlayerEffectStacks[effect] <= 0 then
+                        PlayerEffectStacks[effect] = nil
+                    end
+                end
+            elseif PassiveEffects[effect] then
+                if PlayerPassiveStacks[effect] then
+                    PlayerPassiveStacks[effect] = PlayerPassiveStacks[effect] - stacks
+                    if PlayerPassiveStacks[effect] <= 0 then
+                        PlayerPassiveStacks[effect] = nil
+                    end
+                end
+            end
+    
+        elseif command == "CLEAR" then
+            if StatusEffects[effect] then
+                PlayerEffectStacks[effect] = nil
+            elseif PassiveEffects[effect] then
+                PlayerPassiveStacks[effect] = nil
+            end
+    
+        elseif command == "CLEARALL" then
+            PlayerEffectStacks = {}
+            PlayerPassiveStacks = {}
+        end
+    end)
+
+    net.Receive("SEF_UpdateDesc", function()
+        local effectName = net.ReadString()
+        local newDesc = net.ReadString()
+
+        if ActiveEffects[effectName] then
+            ActiveEffects[effectName].Desc = newDesc
+        elseif ActivePassives[effectName] then
+            ActivePassives[effectName].Desc = newDesc
+        end
     end)
 
     hook.Add("HUDPaint", "DisplayStatusEffectsHUD", DisplayStatusEffects)

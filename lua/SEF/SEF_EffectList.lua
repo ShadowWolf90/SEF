@@ -598,6 +598,71 @@ StatusEffects = {
         },        
         ServerHooks = {},
     },
+    TempShield = {
+        Name = "Temporary Shield",
+        Icon = "SEF_Icons/shieldcomb.png", 
+        Desc = function(amount, max)
+           return string.format("Temporary Shield negates 100%% of received damage. \n If Temporary Shield stacks reach 0, Effect expires \n Damage above Shield stacks are transfered to health. \n Buff Shield: %g \n Current Shield: %g", max, amount) 
+        end,
+        Type = "BUFF",
+        Stackable = true,
+        StackName = "AHP",
+        EffectBegin = function(ent, amount)
+            ent:SetSEFStacks("TempShield", amount)
+        end,
+        Effect = function(ent) end,
+        EffectEnd = function(ent)
+            ent:ResetSEFStacks("TempShield")
+        end,
+        ClientHooks = {},
+        ServerHooks = {
+            {
+                HookType = "EntityTakeDamage",
+                HookFunction = function(ent, dmg, taken)
+                    local shieldStacks = ent:GetSEFStacks("TempShield")
+                    if shieldStacks and shieldStacks > 0 then
+                        local damage = dmg:GetDamage()
+
+                        local effectData = EffectData()
+                        effectData:SetEntity(ent)
+                        effectData:SetScale(1)
+                        effectData:SetMagnitude(4)
+                        util.Effect("TeslaHitboxes", effectData)
+
+                        if damage > shieldStacks then
+                            local remainingDamage = damage - shieldStacks
+    
+                            ent:RemoveSEFStacks("TempShield", shieldStacks)
+
+                            ent:RemoveEffect("TempShield")
+    
+                            dmg:SetDamage(remainingDamage)
+                        else
+                            ent:RemoveSEFStacks("TempShield", damage)
+
+                            local impactSounds = {
+                                "physics/metal/metal_computer_impact_bullet1.wav",
+                                "physics/metal/metal_computer_impact_bullet2.wav",
+                                "physics/metal/metal_computer_impact_bullet3.wav"
+                            }
+                            local randomSound = impactSounds[math.random(#impactSounds)]
+                            EmitSound(randomSound, ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+
+                            dmg:SetDamage(0)
+    
+                            if ent:GetSEFStacks("TempShield") <= 0 then
+                                ent:SoftRemoveEffect("TempShield")
+                            end
+                        end
+
+                        if ent:GetSEFStacks("TempShield") <= 0 then
+                            ent:EmitSound("hl1/fvox/armor_gone.wav")
+                        end
+                    end
+                end,
+            }
+        }
+    },
     Template = { --Name and ID of Effect
         Icon = "SEF_Icons/warning.png", --Icon on HUD and displays
         Desc = "", --Optional
