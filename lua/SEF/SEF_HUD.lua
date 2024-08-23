@@ -144,11 +144,16 @@ if CLIENT then
         surface.DrawTexturedRect(centerX - 16 * ScaleUI, centerY - 16 * ScaleUI, 32 * ScaleUI, 32 * ScaleUI)
     
         local remainingTime = duration - (CurTime() - startTime)
-        draw.SimpleText(math.Round(remainingTime), "SEFFont", centerX, centerY + 24 * ScaleUI, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
+        local TimeDisplay
+        if remainingTime == math.huge then
+            TimeDisplay = "∞"
+        else
+            TimeDisplay = math.Round(remainingTime)
+        end
+
+        draw.SimpleText(TimeDisplay, "SEFFont", centerX, centerY + 24 * ScaleUI, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
         if StackAmount > 1 then
-            surface.SetDrawColor(0, 0, 0, 200)
-            surface.DrawRect(centerX - StackNumberWidth + 5, centerY + 40 * ScaleUI, StackWidth + StackNumberWidth, StackHeight)
-            draw.SimpleText(StackName .. ": " .. StackAmount, "SEFFontSmall", centerX, centerY + 42 * ScaleUI, Color(251, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
+            draw.SimpleText(StackName .. ": " .. StackAmount, "SEFFontSmall", centerX, centerY + 42 * ScaleUI, Color(255, 238, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_LEFT)
         end
     
         if mouseX >= centerX - 16 * ScaleUI and mouseX <= centerX + 16 * ScaleUI and mouseY >= centerY - 16 * ScaleUI and mouseY <= centerY + 16 * ScaleUI then
