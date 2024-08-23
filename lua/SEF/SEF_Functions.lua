@@ -58,7 +58,6 @@ if SERVER then
                     local argsCopy = { unpack(args) }
                     table.insert(argsCopy, #argsCopy, self:GetSEFStacks(effectName))
                     DynDesc = effect.Desc(unpack(argsCopy))
-                    print(unpack(argsCopy))
                 else
                     DynDesc = effect.Desc(unpack(args))
                 end
