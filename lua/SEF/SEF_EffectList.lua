@@ -9,6 +9,15 @@ StatusEffects = {
                 return string.format("You are regenerating %d HP each %g sec.", healamount, delay)
             end
         end,
+        EffectBegin = function(ent)
+            if not ent.HealingEffectSound then
+                EmitSound("Healing.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.HealingEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.HealingEffectSound = nil
+        end,
         Effect = function(ent, time, healamount, delay)
             local TimeLeft = ent:GetTimeLeft("Healing")
             local HealDelay = delay
@@ -24,7 +33,7 @@ StatusEffects = {
                     ent.HealingEffectDelay = CurTime() + HealDelay
                 end
             end
-        end
+        end                      
     },
     HealthBoost = {
         Icon = "SEF_Icons/health-increase.png",
@@ -39,11 +48,17 @@ StatusEffects = {
             end
             BaseStatAdd(ent, "MaxHealth", healthadd)
             ent.HealthBoostLastAdded = healthadd
+
+            if not ent.HealthBoostEffectSound then
+                EmitSound("Energized.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.HealthBoostEffectSound = true
+            end
         end,
         EffectEnd = function(ent)
             if ent.HealthBoostLastAdded then
                 BaseStatRemove(ent, "MaxHealth", ent.HealthBoostLastAdded)
                 ent.HealthBoostLastAdded = nil
+                ent.HealthBoostEffectSound = nil
             end
         end,
         HookType = "",
@@ -60,6 +75,15 @@ StatusEffects = {
             elseif delay != nil and maxamount == nil then
                 return string.format("You are regenerating %d shield each %g sec up to your max shield amount.", healamount, delay)
             end
+        end,
+        EffectBegin = function(ent)
+            if not ent.EnergizedEffectSound then
+                EmitSound("Energized.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.EnergizedEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.EnergizedEffectSound = nil
         end,
         Effect = function(ent, time, healamount, delay, maxamount)
             local TimeLeft = ent:GetTimeLeft("Energized")
@@ -86,6 +110,15 @@ StatusEffects = {
         Desc = function(maxhealth)
             return string.format("Your health is capped at %d HP.", maxhealth)
         end,
+        EffectBegin = function(ent)
+            if not ent.BrokenEffectSound then
+                EmitSound("broken.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.BrokenEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.BrokenEffectSound = nil
+        end,
         Effect = function(ent, time, maxhealth)
             local TimeLeft = ent:GetTimeLeft("Broken")
             if TimeLeft > 0.1  then
@@ -110,7 +143,14 @@ StatusEffects = {
         Icon = "SEF_Icons/exposed.png",
         Type = "DEBUFF",
         Desc = "Received damage is doubled.",
-        Effect = function(ent, time)
+        EffectBegin = function(ent)
+            if not ent.ExposedEffectSound then
+                EmitSound("exposed.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.ExposedEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.ExposedEffectSound = nil
         end,
         ServerHooks = {
             {
@@ -128,6 +168,15 @@ StatusEffects = {
         Icon = "SEF_Icons/endurance.png",
         Type = "BUFF",
         Desc = "Received damage is reduced by 50%.",
+        EffectBegin = function(ent)
+            if not ent.EnduranceEffectSound then
+                EmitSound("Endurance.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.EnduranceEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.EnduranceEffectSound = nil
+        end,
         Effect = function(ent, time)
         end,
         ServerHooks = {
@@ -158,6 +207,11 @@ StatusEffects = {
                 BaseStatAdd(ent, "WalkSpeed", speedAdd)
                 BaseStatAdd(ent, "RunSpeed", speedAdd)
                 ent.HasteEffectLastAdded = speedAdd
+
+                if not ent.HasteEffectSound then
+                    EmitSound("Haste.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                    ent.HasteEffectSound = true
+                end
             end
         end,
         EffectEnd = function(ent)
@@ -166,6 +220,7 @@ StatusEffects = {
                     BaseStatRemove(ent, "WalkSpeed", ent.HasteEffectLastAdded)
                     BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
                     ent.HasteEffectLastAdded = nil
+                    ent.HasteEffectSound = nil
                 end
             end
         end
@@ -174,6 +229,15 @@ StatusEffects = {
         Icon = "SEF_Icons/exhaust.png",
         Type = "DEBUFF",
         Desc = "You are tired. \nYour speed can't be increased.",
+        EffectBegin = function(ent)
+            if not ent.ExhaustEffectSound then
+                EmitSound("Exhaust.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.ExhaustEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.ExhaustEffectSound = nil
+        end,
         Effect = function(ent, time)
             local TimeLeft = ent:GetTimeLeft("Exhaust")
     
@@ -219,6 +283,11 @@ StatusEffects = {
     
                 ent.HinderedEffectLastAdded = speedDecrease
             end
+
+            if not ent.HinderedEffectSound then
+                EmitSound("Exhaust.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.HinderedEffectSound = true
+            end
         end,
         Effect = function(ent, time, speedDecrease)
             if ent:IsNPC() and not ent:IsNextBot() then
@@ -239,6 +308,8 @@ StatusEffects = {
                 ent:SetMovementActivity(ent.PreviousMovement)
                 ent.PreviousMovement = nil
             end
+
+            ent.HinderedEffectSound = nil
         end,
         HookType = "",
         HookFunction = function() end
@@ -248,6 +319,12 @@ StatusEffects = {
         Type = "DEBUFF",
         Desc = function(damageamount)
             return string.format("You are bleeding.\n You are losing %d HP each 0.3 sec.", damageamount)
+        end,
+        EffectBegin = function(ent)
+            if not ent.BleedingEffectSound then
+                EmitSound("Bleeding.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.BleedingEffectSound = true
+            end
         end,
         Effect = function(ent, time, damageamount, delay, inf)
             local TimeLeft = ent:GetTimeLeft("Bleeding")
@@ -276,12 +353,19 @@ StatusEffects = {
         end,
         EffectEnd = function(ent)
             ent.BleedingEffectDelay = nil
+            ent.BleedingEffectSound = nil
         end
     },
     Incapacitated = {
         Icon = "SEF_Icons/incap.png",
         Type = "DEBUFF",
         Desc = "You are unable to use any weapons or tools.",
+        EffectBegin = function(ent)
+            if not ent.IncapacitatedEffectSound then
+                EmitSound("Incapacitated.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.IncapacitatedEffectSound = true
+            end
+        end,
         Effect = function(ent, time)
             local TimeLeft = ent:GetTimeLeft("Incapacitated")
             if TimeLeft > 0.5 then
@@ -326,13 +410,20 @@ StatusEffects = {
                 end
             end
         end,
-        HookType = "",
-        HookFunction = function() end
+        EffectEnd = function(ent)
+            ent.IncapacitatedEffectSound = nil
+        end
     },
     Tenacity = {
         Icon = "SEF_Icons/tenacity.png",
         Desc = "You've become immune to negative effects. \n Debuffs are 75% shorter.",
         Type = "BUFF",
+        EffectBegin = function(ent)
+            if not ent.TenacityEffectSound then
+                EmitSound("Tenacity.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.TenacityEffectSound = true
+            end
+        end,
         Effect = function(ent, time)
             for effectName, effectData in pairs(EntActiveEffects[ent:EntIndex()]) do
                 if StatusEffects[effectName].Type == "DEBUFF" and not effectData.TenacityAffected then
@@ -341,6 +432,9 @@ StatusEffects = {
                     effectData.TenacityAffected = true
                 end
             end
+        end,
+        EffectEnd = function(ent)
+            ent.TenacityEffectSound = nil
         end
     },
     Bloodlust = {
@@ -353,6 +447,12 @@ StatusEffects = {
                 return string.format("You are hungry for blood! \nDamage you deal is increased by %d%%", dmgincr)
             end
         end,
+        EffectBegin = function(ent)
+            if not ent.BloodlustEffectSound then
+                EmitSound("Bloodlust.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.BloodlustEffectSound = true
+            end
+        end,
         Effect = function(ent, time, dmgincr, lifesteal)
             if ent:GetTimeLeft("Bloodlust") > 0.1 then
                 if lifesteal ~= nil and lifesteal ~= 0 then
@@ -362,6 +462,9 @@ StatusEffects = {
                     ent.BloodLustDMGIncrease = dmgincr
                 end
             end
+        end,
+        EffectEnd = function(ent)
+            ent.BloodlustEffectSound = nil
         end,
         ServerHooks = {
             {
@@ -388,6 +491,11 @@ StatusEffects = {
         EffectBegin = function(ent)
             if ent:IsPlayer() then
                 ent:DoAnimationEvent(ACT_HL2MP_IDLE_COWER)
+                if not ent.StunnedEffectSound then
+                    EmitSound("Stunned.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                    ent.StunnedEffectSound = true
+                end
+
             end
         end,
         Effect = function(ent)
@@ -398,6 +506,7 @@ StatusEffects = {
         EffectEnd = function(ent)
             if ent:IsPlayer() then
                 ent:DoAnimationEvent(ACT_HL2MP_RUN)
+                ent.StunnedEffectSound = nil
             end
         end,
         ClientHooks = {
@@ -438,6 +547,12 @@ StatusEffects = {
         Desc = function(witheramount, delay)
             return string.format("You are losing %d HP each %g sec.", witheramount, delay)
         end,
+        EffectBegin = function(ent)
+            if not ent.WitherEffectSound then
+                EmitSound("Withered.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.WitherEffectSound = true
+            end
+        end,
         Effect = function(ent, time, witheramount, delay)
             local TimeLeft = ent:GetTimeLeft("Wither")
             if TimeLeft > 0.1 then
@@ -458,6 +573,9 @@ StatusEffects = {
                 end
     
             end
+        end,
+        EffectEnd = function(ent)
+            ent.WitherEffectSound = nil
         end
     },
     Discharge = {
@@ -465,6 +583,12 @@ StatusEffects = {
         Type = "DEBUFF",
         Desc = function(dischAmount, delay)
             return string.format("You are losing %d shield each %g sec.", dischAmount, delay)
+        end,
+        EffectBegin = function(ent)
+            if not ent.DischargeEffectSound then
+                EmitSound("Discharge.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.DischargeEffectSound = true
+            end
         end,
         Effect = function(ent, time, dischAmount, delay)
             local TimeLeft = ent:GetTimeLeft("Discharge")
@@ -484,12 +608,24 @@ StatusEffects = {
                 end
     
             end
+        end,
+        EffectEnd = function(ent)
+            ent.DischargeEffectSound = nil
         end
     },
     Blindness = {
         Icon = "SEF_Icons/blind.png",
         Desc = "You are unable to see.", 
-        Type = "DEBUFF",  
+        Type = "DEBUFF",
+        EffectBegin = function(ent)
+            if not ent.BlindnessEffectSound then
+                EmitSound("Blindness.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.BlindnessEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.BlindnessEffectSound = nil
+        end,  
         ClientHooks = {
             {
                 HookType = "HUDPaintBackground",
@@ -527,8 +663,12 @@ StatusEffects = {
         Type = "DEBUFF",
         EffectBegin = function(ent)
             ent.PoisonEffectHP = ent:Health()
+            if not ent.PoisonEffectSound then
+                EmitSound("Poison.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.PoisonEffectSound = true
+            end
         end,
-        Effect = function(ent, time, damageamount, inf, delay)
+        Effect = function(ent, time, damageamount, delay, inf)
             local TimeLeft = ent:GetTimeLeft("Poison")
             if TimeLeft > 0.1 then
 
@@ -572,6 +712,7 @@ StatusEffects = {
         EffectEnd = function(ent)
             ent.PoisonEffectDelay = nil
             ent.PoisonEffectHP = nil
+            ent.PoisonEffectSound = nil
         end,
         ClientHooks = {
             {
@@ -609,10 +750,15 @@ StatusEffects = {
         StackName = "AHP",
         EffectBegin = function(ent, amount)
             ent:SetSEFStacks("TempShield", amount)
+            if not ent.TempShieldEffectSound then
+                EmitSound("TempShield.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.TempShieldEffectSound = true
+            end
         end,
         Effect = function(ent) end,
         EffectEnd = function(ent)
             ent:ResetSEFStacks("TempShield")
+            ent.TempShieldEffectSound = nil
         end,
         ClientHooks = {},
         ServerHooks = {
@@ -663,14 +809,4 @@ StatusEffects = {
             }
         }
     },
-    Template = { --Name and ID of Effect
-        Icon = "SEF_Icons/warning.png", --Icon on HUD and displays
-        Desc = "", --Optional
-        Type = "DEBUFF", --Type 
-        EffectBegin = function(ent) end,
-        Effect = function(ent, time) end, --Effect on entity/player, function can be expanded by additional arguments,
-        EffectEnd = function(ent) end,
-        ClientHooks = {},
-        ServerHooks = {}
-    }
 }

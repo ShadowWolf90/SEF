@@ -1,17 +1,16 @@
 PassiveEffects = {
-    Template = { --Name and ID of Effect
-        Icon = "SEF_Icons/warning.png", --Icon on HUD and displays
-        Desc = "", --Optional
-        Effect = function(ent, time) --Effect on entity/player, function can be expanded by additional arguments
-        end,
-        HookType = "", --Hook name 
-        HookFunction = function() end -- What function should be added to set HookType.
+
+    PassiveTemplate = {
+        Icon = "SEF_Icons/warning.png",
+        Desc = "", 
+        Effect = function(ent) end,
+        ClientHooks = {},
+        ServerHooks = {}
     },
+
     IronSkin = {
         Icon = "SEF_Icons/endurance.png",
         Desc = "Received damage is reduced by 20%.",
-        Effect = function(ent, time)
-        end,
         ServerHooks = {
             {
                 HookType = "EntityTakeDamage",
@@ -24,11 +23,10 @@ PassiveEffects = {
             }
         }
     },
+
     Fireborn = {
         Icon = "SEF_Icons/bloodlust.png",
         Desc = "You are immune to Fire Damage and it also heals you.",
-        Effect = function(ent, time)
-        end,
         ServerHooks = {
             {
                 HookType = "EntityTakeDamage",
@@ -47,4 +45,5 @@ PassiveEffects = {
             }
         }
     }
+
 }
