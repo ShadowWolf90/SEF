@@ -62,7 +62,7 @@ if SERVER then
             if effect and effectData.ServerHooks then
                 for index, hookData in ipairs(effectData.ServerHooks) do
                     if hookData.HookType then
-                        local hookID = effect .. "SEF_ES_" .. tostring(index)
+                        local hookID = "SEF_SERVER_EFFECT_" .. effect .. tostring(index)
                         
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
@@ -93,7 +93,7 @@ if SERVER then
             if passive and PassiveData.ServerHooks then
                 for index, hookData in ipairs(PassiveData.ServerHooks) do
                     if hookData.HookType ~= "" then
-                        local hookID = passive .. "SEF_PS_" .. tostring(index)
+                        local hookID = "SEF_SERVER_PASSIVE_" .. passive .. tostring(index)
     
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
@@ -242,7 +242,7 @@ else
             if effect and effectData.ClientHooks then
                 for index, hookData in ipairs(effectData.ClientHooks) do
                     if hookData.HookType then
-                        local hookID = "!" .. effect .. "SEF_EC_" .. tostring(index)
+                        local hookID = "SEF_CLIENT_EFFECT_" .. effect .. tostring(index)
                         
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
@@ -269,7 +269,7 @@ else
             if passive and PassiveData.ClientHooks then
                 for index, hookData in ipairs(PassiveData.ClientHooks) do
                     if hookData.HookType ~= "" then
-                        local hookID = "!" .. passive .. "SEF_PC_" .. tostring(index)
+                        local hookID = "SEF_CLIENT_PASSIVE_" .. passive .. tostring(index)
     
                         if not hookData.HookInit then
                             hookData.LastHookFunction = hookData.HookFunction
@@ -292,12 +292,63 @@ else
         end
     end
 
+    local function CreateDisplayHooks()
+        for effect, effectData in pairs(StatusEffects) do
+            if effectData.DisplayFunction then
+                local hookID = "SEF_DISPLAYHOOK_" .. effect
+                
+                -- Sprawdź, czy hook został już dodany
+                if not effectData.DisplayHookInit then
+                    -- Zapisz początkową funkcję hooka
+                    effectData.LastDisplayFunction = effectData.DisplayFunction
+    
+                    -- Dodaj hooka
+                    hook.Add("Think", hookID, function()
+                        for entID, activeEffects in pairs(AllEntEffects) do
+                            if activeEffects[effect] then
+                                local entity = Entity(entID)
+                                effectData.DisplayFunction(entity)
+                            end
+                        end
+                    end)
+    
+                    -- Zaznacz, że hook został dodany
+                    effectData.DisplayHookInit = true
+    
+                    print("[Status Effect Framework] Display Hook has been created for: " .. effect .. " Hook: " .. hookID)
+                elseif effectData.LastDisplayFunction ~= effectData.DisplayFunction then
+                    -- Funkcja hooka została zmieniona, zaktualizuj hooka
+                    print("[Status Effect Framework] Updating Display Hook Function for: " .. effect .. " Hook: " .. hookID)
+    
+                    -- Usunięcie starego hooka, jeśli istnieje
+                    hook.Remove("Think", hookID)
+    
+                    -- Dodanie nowego hooka
+                    hook.Add("Think", hookID, function()
+                        for entID, activeEffects in pairs(AllEntEffects) do
+                            if activeEffects[effect] then
+                                local entity = Entity(entID)
+                                effectData.DisplayFunction(entity)
+                            end
+                        end
+                    end)
+    
+                    -- Zaktualizuj zapis funkcji hooka
+                    effectData.LastDisplayFunction = effectData.DisplayFunction
+                end
+            end
+        end
+    end
+
+
     hook.Add("InitPostEntity", "CreateSEFClientHooks", function() 
         CreateClientEffectHooks()
+        CreateDisplayHooks()
     end)
 
-    concommand.Add("SEF_CreateClientEffectHooks", function(ply, cmd, args)
+    concommand.Add("SEF_CreateClientHooks", function(ply, cmd, args)
         CreateClientEffectHooks()
+        CreateDisplayHooks()
     end, nil, "Reloads or creates all SEF hooks for Client.")
 
 end

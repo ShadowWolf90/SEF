@@ -33,7 +33,38 @@ StatusEffects = {
                     ent.HealingEffectDelay = CurTime() + HealDelay
                 end
             end
-        end                      
+        end,
+        DisplayFunction = function(ent)
+            if ent:IsValid() then
+                local emitter = ParticleEmitter(ent:GetPos())
+
+                if not ent.HealParticleTime then
+                    ent.HealParticleTime = CurTime()
+                end
+
+                if emitter then
+                    -- Losowanie kąta i odległości do umieszczenia cząsteczki wokół encji
+                    local angle = math.Rand(0, 360)
+                    local distance = math.Rand(0, 25)
+                    local offset = Vector(math.cos(math.rad(angle)) * distance, math.sin(math.rad(angle)) * distance, 10)
+                    local particlePos = ent:GetPos() + offset
+                    local particle = emitter:Add(Material("SEF_Icons/health-normal.png"), particlePos)
+                    if particle and CurTime() >= ent.HealParticleTime + 0.3 then
+                        particle:SetVelocity(Vector(0, 0, 50))  -- Ustawienie prędkości w górę
+                        particle:SetLifeTime(0)
+                        particle:SetDieTime(2)
+                        particle:SetStartAlpha(255)
+                        particle:SetEndAlpha(0)
+                        particle:SetStartSize(5)
+                        particle:SetEndSize(0)
+                        particle:SetColor(255, 255, 255)
+                        ent.HealParticleTime = CurTime()
+                    end
+        
+                    emitter:Finish()
+                end
+            end
+        end                       
     },
     HealthBoost = {
         Icon = "SEF_Icons/health-increase.png",
@@ -101,8 +132,37 @@ StatusEffects = {
                 end
             end
         end,
-        HookType = "",
-        HookFunction = function() end
+        DisplayFunction = function(ent)
+            if ent:IsValid() then
+                local emitter = ParticleEmitter(ent:GetPos())
+
+                if not ent.ArmorParticleTime then
+                    ent.ArmorParticleTime = CurTime()
+                end
+
+                if emitter then
+                    -- Losowanie kąta i odległości do umieszczenia cząsteczki wokół encji
+                    local angle = math.Rand(0, 360)
+                    local distance = math.Rand(0, 25)
+                    local offset = Vector(math.cos(math.rad(angle)) * distance, math.sin(math.rad(angle)) * distance, 10)
+                    local particlePos = ent:GetPos() + offset
+                    local particle = emitter:Add(Material("SEF_Icons/healing-shield.png"), particlePos)
+                    if particle and CurTime() >= ent.ArmorParticleTime + 0.3 then
+                        particle:SetVelocity(Vector(0, 0, 50))  -- Ustawienie prędkości w górę
+                        particle:SetLifeTime(0)
+                        particle:SetDieTime(2)
+                        particle:SetStartAlpha(255)
+                        particle:SetEndAlpha(0)
+                        particle:SetStartSize(5)
+                        particle:SetEndSize(0)
+                        particle:SetColor(255, 255, 255)
+                        ent.ArmorParticleTime = CurTime()
+                    end
+        
+                    emitter:Finish()
+                end
+            end
+        end
     },
     Broken = {
         Icon = "SEF_Icons/broken.png",
@@ -221,6 +281,32 @@ StatusEffects = {
                     BaseStatRemove(ent, "RunSpeed", ent.HasteEffectLastAdded)
                     ent.HasteEffectLastAdded = nil
                     ent.HasteEffectSound = nil
+                end
+            end
+        end,
+        DisplayFunction = function(ent)
+            if ent:IsValid() then
+                local emitter = ParticleEmitter(ent:GetPos())
+
+                if not ent.HasteParticleTime then
+                    ent.HasteParticleTime = CurTime()
+                end
+
+                if emitter then
+                    local particlePos = ent:GetPos()
+                    local particle = emitter:Add("particles/smokey", particlePos)
+                    if particle and CurTime() >= ent.HasteParticleTime + 0.05 and ent:GetVelocity():LengthSqr() > 0 and ent:IsOnGround() then
+                        particle:SetLifeTime(0)
+                        particle:SetDieTime(0.5)
+                        particle:SetStartAlpha(255)
+                        particle:SetEndAlpha(0)
+                        particle:SetStartSize(1)
+                        particle:SetEndSize(50)
+                        particle:SetColor(255, 255, 255)
+                        ent.HasteParticleTime = CurTime()
+                    end
+        
+                    emitter:Finish()
                 end
             end
         end
