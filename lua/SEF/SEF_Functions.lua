@@ -190,7 +190,7 @@ if SERVER then
                 net.Start("SEF_AddEffect")
                 net.WriteString(effectName)
                 net.WriteString("Effect is wearing off.")
-                net.WriteFloat(1)
+                net.WriteFloat(2)
                 net.Send(self)
             end
 
@@ -314,6 +314,18 @@ if SERVER then
         end
         if SEF_LoggingMode:GetBool() then
             print("[BaseStats System] Statistic " .. stat .. " has been reset on entity: " .. tostring(ent))
+        end
+    end
+
+    function BaseStatResetAll(ent)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
+        ent:SetMaxHealth(EntBaseStats[ent].MaxHealth)
+        if ent.GetMaxArmor and ent:GetMaxArmor() then ent:SetMaxArmor(EntBaseStats[ent].MaxArmor) end
+        if ent.GetWalkSpeed and ent:GetWalkSpeed() then ent:SetWalkSpeed(EntBaseStats[ent].WalkSpeed) end
+        if ent.GetRunSpeed and ent:GetRunSpeed() then ent:SetRunSpeed(EntBaseStats[ent].RunSpeed) end
+        if ent.GetJumpPower and ent.SetJumpPower and ent:GetJumpPower() then ent:SetJumpPower(EntBaseStats[ent].JumpPower) end
+        if SEF_LoggingMode:GetBool() then
+            print("[BaseStats System] All Statistics has been reset on entity: " .. tostring(ent))
         end
     end
 
@@ -632,6 +644,7 @@ if SERVER then
 else
 
     local PLAYERCLIENT = FindMetaTable("Player")
+    local ENTITYCLIENT = FindMetaTable("Entity")
 
     function PLAYERCLIENT:HaveEffect(effectName)
         if ActiveEffects[effectName] then
@@ -660,6 +673,17 @@ else
         end
     end
 
+    function ENTITYCLIENT:GetEntTimeLeft(effectName)
+        if AllEntEffects[self:EntIndex()][effectName] then
+            local effectData = AllEntEffects[self:EntIndex()][effectName]
+            local elapsedTime = CurTime() - effectData.StartTime
+            local remainingTime = effectData.Duration - elapsedTime
+            return math.max(remainingTime, 0)
+        else
+            return 0 
+        end
+    end
+
     function PLAYERCLIENT:GetSEFStacks(effectName)
 
         if PlayerEffectStacks[effectName] then
@@ -672,5 +696,4 @@ else
         
         return 0
     end
-    
 end

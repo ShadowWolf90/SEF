@@ -320,7 +320,7 @@ if CLIENT then
             THROverHead = false
         end
 
-        for effectName, effectData in SortedPairsByMemberValue(ActiveEffects, "Duration", true) do
+        for effectName, effectData in SortedPairsByMemberValue(ActiveEffects, "StartTime", false) do
 
             DrawStatusEffectTimer(StatusEffX , StatusEffY, effectName, effectData.Desc, effectData.Duration, effectData.StartTime)
 

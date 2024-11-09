@@ -8,14 +8,12 @@ if SERVER then
                     local currentTime = CurTime()
                     local TimeLeft = effectData.StartTime + effectData.Duration - currentTime
                     if TimeLeft > 0 then
-                        -- Jeśli efekt jest nowy lub został ponownie nałożony
                         if not effectData.HasBegun or (effectData.HasBegun and effectData.IsReApplied) then
-                            -- Wywołanie funkcji EffectBegin
                             if effectData.FunctionBegin then
                                 effectData.FunctionBegin(Affected, unpack(effectData.Args))
                             end
                             effectData.HasBegun = true
-                            effectData.IsReApplied = nil -- Resetowanie flagi przy pierwszym wywołaniu
+                            effectData.IsReApplied = nil
                         end
 
                         if effectData.Function then
@@ -23,7 +21,6 @@ if SERVER then
                         end
                         
                     else
-                        -- Wywołanie funkcji EffectEnd przed usunięciem efektu
                         if effectData.FunctionEnd then
                             effectData.FunctionEnd(Affected, unpack(effectData.Args))
                         end
@@ -43,11 +40,13 @@ if SERVER then
     
 
     hook.Add("Think", "EntityPassivesEffectThink", function()
-        for entID, effects in pairs(EntActivePassives) do
+        for entID, Passives in pairs(EntActivePassives) do
             local Affected = Entity(entID)
             if IsValid(Affected) and (Affected:IsPlayer() or Affected:IsNPC() or Affected:IsNextBot()) then
-                for effectName, PassiveData in pairs(effects) do
-                    PassiveData.Function(Affected)
+                for effectName, PassiveData in pairs(Passives) do
+                    if PassiveData.Function then
+                        PassiveData.Function(Affected)
+                    end
                 end
             elseif not IsValid(Affected) then
                 EntActivePassives[entID] = nil
@@ -124,10 +123,15 @@ if SERVER then
     hook.Add("PlayerDeath", "RemoveStatusEffects", function(victim, inflictor, attacker)
         if IsValid(victim) and EntActiveEffects[victim:EntIndex()] then
             for effectName, _ in pairs(EntActiveEffects[victim:EntIndex()]) do
-                victim:RemoveEffect(effectName)
+                if not StatusEffects[effectName].SoftDelete then
+                    victim:RemoveEffect(effectName)
+                else
+                    victim:SoftRemoveEffect(effectName)
+                end
                 victim:ClearSEFStacks()
             end
         end
+        BaseStatResetAll(victim)
     end)
 
     hook.Add("LambdaOnKilled", "RemoveStatusEffectsLambda", function(lambda, dmg, isSilent)
@@ -136,6 +140,7 @@ if SERVER then
                 timer.Simple(0.5, function() lambda:SoftRemoveEffect(effectName) end)
             end
         end
+        BaseStatResetAll(lambda)
     end)
 
     hook.Add("Think", "SEF_UpdateEffectDesc", function()
@@ -305,8 +310,8 @@ else
                     -- Dodaj hooka
                     hook.Add("Think", hookID, function()
                         for entID, activeEffects in pairs(AllEntEffects) do
+                            local entity = Entity(entID)
                             if activeEffects[effect] then
-                                local entity = Entity(entID)
                                 effectData.DisplayFunction(entity)
                             end
                         end
@@ -326,8 +331,8 @@ else
                     -- Dodanie nowego hooka
                     hook.Add("Think", hookID, function()
                         for entID, activeEffects in pairs(AllEntEffects) do
+                            local entity = Entity(entID)
                             if activeEffects[effect] then
-                                local entity = Entity(entID)
                                 effectData.DisplayFunction(entity)
                             end
                         end

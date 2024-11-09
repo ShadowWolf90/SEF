@@ -43,14 +43,13 @@ StatusEffects = {
                 end
 
                 if emitter then
-                    -- Losowanie kąta i odległości do umieszczenia cząsteczki wokół encji
                     local angle = math.Rand(0, 360)
                     local distance = math.Rand(0, 25)
                     local offset = Vector(math.cos(math.rad(angle)) * distance, math.sin(math.rad(angle)) * distance, 10)
                     local particlePos = ent:GetPos() + offset
                     local particle = emitter:Add(Material("SEF_Icons/health-normal.png"), particlePos)
                     if particle and CurTime() >= ent.HealParticleTime + 0.3 then
-                        particle:SetVelocity(Vector(0, 0, 50))  -- Ustawienie prędkości w górę
+                        particle:SetVelocity(Vector(0, 0, 50))
                         particle:SetLifeTime(0)
                         particle:SetDieTime(2)
                         particle:SetStartAlpha(255)
@@ -227,11 +226,20 @@ StatusEffects = {
     Endurance = {
         Icon = "SEF_Icons/endurance.png",
         Type = "BUFF",
-        Desc = "Received damage is reduced by 50%.",
-        EffectBegin = function(ent)
+        Desc = function(percent)
+            if percent == nil then percent = 50 end
+            return string.format("Received damage is reduced by %d%%", percent)
+        end,
+        EffectBegin = function(ent, percent)
             if not ent.EnduranceEffectSound then
                 EmitSound("Endurance.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
                 ent.EnduranceEffectSound = true
+            end
+
+            if percent ~= nil then
+                ent.EndurancePercent = 1 - (percent / 100)
+            else
+                ent.EndurancePercent = 0.5
             end
         end,
         EffectEnd = function(ent)
@@ -244,7 +252,8 @@ StatusEffects = {
                 HookType = "EntityTakeDamage",
                 HookFunction = function(target, dmginfo)
                     if target and target:HaveEffect("Endurance") then
-                        dmginfo:ScaleDamage(0.5)
+                        dmginfo:ScaleDamage(target.EndurancePercent)
+                        print(target.EndurancePercent)
                         target:EmitSound("phx/epicmetal_hard.wav", 110, math.random(75, 125), 1)
                     end
                 end
@@ -286,30 +295,60 @@ StatusEffects = {
         end,
         DisplayFunction = function(ent)
             if ent:IsValid() then
-                local emitter = ParticleEmitter(ent:GetPos())
-
+                -- Inicjalizacja czasu i liczby cząsteczek, jeśli nie istnieją
                 if not ent.HasteParticleTime then
                     ent.HasteParticleTime = CurTime()
                 end
+                if not ent.HasteParticleCount then
+                    ent.HasteParticleCount = 0
+                end
 
-                if emitter then
-                    local particlePos = ent:GetPos()
-                    local particle = emitter:Add("particles/smokey", particlePos)
-                    if particle and CurTime() >= ent.HasteParticleTime + 0.05 and ent:GetVelocity():LengthSqr() > 0 and ent:IsOnGround() then
-                        particle:SetLifeTime(0)
-                        particle:SetDieTime(0.5)
-                        particle:SetStartAlpha(255)
-                        particle:SetEndAlpha(0)
-                        particle:SetStartSize(1)
-                        particle:SetEndSize(50)
-                        particle:SetColor(255, 255, 255)
-                        ent.HasteParticleTime = CurTime()
-                    end
         
-                    emitter:Finish()
+                -- Sprawdzanie, czy liczba cząsteczek nie przekroczyła limitu
+                if ent.HasteParticleCount < 10 then
+                    local emitter = ParticleEmitter(ent:GetPos())
+        
+                    if emitter then
+                        -- Sprawdzanie, czy minął czas od ostatniej emisji
+                        if CurTime() >= ent.HasteParticleTime + 0.01 then
+                            local angle = math.Rand(0, 360)
+                            local distance = math.Rand(0, 15)
+                            local offset = Vector(math.cos(math.rad(angle)) * distance, math.sin(math.rad(angle)) * distance, 10)
+                            local particlePos = ent:GetPos() + offset
+                            local particle = emitter:Add(Material("SEF_Icons/arrow_up.png"), particlePos)
+                            
+                            if particle then
+                                particle:SetVelocity(Vector(0, 0, 50))  -- Ustawienie prędkości w górę
+                                particle:SetLifeTime(0)
+                                particle:SetDieTime(3)
+                                particle:SetStartAlpha(255)
+                                particle:SetEndAlpha(0)
+                                particle:SetStartSize(5)
+                                particle:SetEndSize(0)
+                                particle:SetColor(0, 255, 0)
+        
+                                -- Aktualizacja czasu i licznika cząsteczek
+                                ent.HasteParticleTime = CurTime()
+                                ent.HasteParticleCount = ent.HasteParticleCount + 1
+                            end
+        
+                            emitter:Finish()
+                        end
+                    end
+                end
+        
+                -- Usuwanie licznika cząsteczek, jeśli czas efektu "Haste" minął
+                local timeLeft = ent:GetEntTimeLeft("Haste")
+                if timeLeft < 0.1 then
+                    if ent.HasteParticleCount then
+                        ent.HasteParticleCount = nil
+                    end
+                    if ent.HasteParticleTime then
+                        ent.HasteParticleTime = nil
+                    end
                 end
             end
-        end
+        end             
     },
     Exhaust = {
         Icon = "SEF_Icons/exhaust.png",
@@ -396,9 +435,65 @@ StatusEffects = {
             end
 
             ent.HinderedEffectSound = nil
+            ent.HinderedParticleTime = nil
+            ent.HinderedParticleCount = nil
         end,
-        HookType = "",
-        HookFunction = function() end
+        DisplayFunction = function(ent)
+            if ent:IsValid() then
+                -- Inicjalizacja czasu i liczby cząsteczek, jeśli nie istnieją
+                if not ent.HinderedParticleTime then
+                    ent.HinderedParticleTime = CurTime()
+                end
+                if not ent.HinderedParticleCount then
+                    ent.HinderedParticleCount = 0
+                end
+
+        
+                -- Sprawdzanie, czy liczba cząsteczek nie przekroczyła limitu
+                if ent.HinderedParticleCount < 10 then
+                    local emitter = ParticleEmitter(ent:GetPos())
+        
+                    if emitter then
+                        -- Sprawdzanie, czy minął czas od ostatniej emisji
+                        if CurTime() >= ent.HinderedParticleTime + 0.01 then
+                            local angle = math.Rand(0, 360)
+                            local distance = math.Rand(0, 15)
+                            local offset = Vector(math.cos(math.rad(angle)) * distance, math.sin(math.rad(angle)) * distance, 100)
+                            local particlePos = ent:GetPos() + offset
+                            local particle = emitter:Add(Material("SEF_Icons/arrow_down.png"), particlePos)
+                            
+                            if particle then
+                                particle:SetVelocity(Vector(0, 0, -50))  -- Ustawienie prędkości w górę
+                                particle:SetLifeTime(0)
+                                particle:SetDieTime(3)
+                                particle:SetStartAlpha(255)
+                                particle:SetEndAlpha(0)
+                                particle:SetStartSize(5)
+                                particle:SetEndSize(0)
+                                particle:SetColor(255, 0, 0)
+        
+                                -- Aktualizacja czasu i licznika cząsteczek
+                                ent.HinderedParticleTime = CurTime()
+                                ent.HinderedParticleCount = ent.HinderedParticleCount + 1
+                            end
+        
+                            emitter:Finish()
+                        end
+                    end
+                end
+        
+                -- Usuwanie licznika cząsteczek, jeśli czas efektu "Haste" minął
+                local timeLeft = ent:GetEntTimeLeft("Hindered")
+                if timeLeft < 0.1 then
+                    if ent.HinderedParticleCount then
+                        ent.HinderedParticleCount = nil
+                    end
+                    if ent.HinderedParticleTime then
+                        ent.HinderedParticleTime = nil
+                    end
+                end
+            end
+        end             
     },    
     Bleeding = {
         Icon = "SEF_Icons/bleed.png",
@@ -502,7 +597,10 @@ StatusEffects = {
     },
     Tenacity = {
         Icon = "SEF_Icons/tenacity.png",
-        Desc = "You've become immune to negative effects. \n Debuffs are 75% shorter.",
+        Desc = function(percent)
+            if percent == nil then percent = 50 end
+            return string.format("Debuffs are %d%% shorter.", percent)
+        end,
         Type = "BUFF",
         EffectBegin = function(ent)
             if not ent.TenacityEffectSound then
@@ -510,10 +608,11 @@ StatusEffects = {
                 ent.TenacityEffectSound = true
             end
         end,
-        Effect = function(ent, time)
+        Effect = function(ent, time, percent)
+            if percent == nil then percent = 50 end
             for effectName, effectData in pairs(EntActiveEffects[ent:EntIndex()]) do
                 if StatusEffects[effectName].Type == "DEBUFF" and not effectData.TenacityAffected then
-                    local NewDuration = EntActiveEffects[ent:EntIndex()][effectName].Duration * 0.25
+                    local NewDuration = EntActiveEffects[ent:EntIndex()][effectName].Duration * (1 - (percent / 100))
                     ent:ChangeDuration(effectName, NewDuration)
                     effectData.TenacityAffected = true
                 end
@@ -577,23 +676,32 @@ StatusEffects = {
         EffectBegin = function(ent)
             if ent:IsPlayer() then
                 ent:DoAnimationEvent(ACT_HL2MP_IDLE_COWER)
-                if not ent.StunnedEffectSound then
-                    EmitSound("Stunned.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
-                    ent.StunnedEffectSound = true
-                end
-
+            elseif ent.IsLambdaPlayer then
+                ent:DoAnimationEvent(ACT_HL2MP_IDLE_COWER)
+                ent.l_isfrozen = true
             end
+
+            if not ent.StunnedEffectSound then
+                EmitSound("Stunned.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.StunnedEffectSound = true
+            end
+
         end,
         Effect = function(ent)
             if ent:IsPlayer() then
                 ent:SetActiveWeapon(NULL)
+            elseif ent.IsLambdaPlayer then
+                ent.l_Weapon = "none"
             end
         end,
         EffectEnd = function(ent)
             if ent:IsPlayer() then
                 ent:DoAnimationEvent(ACT_HL2MP_RUN)
-                ent.StunnedEffectSound = nil
+            elseif ent.IsLambdaPlayer then
+                ent:DoAnimationEvent(ACT_HL2MP_RUN)
             end
+
+            ent.StunnedEffectSound = nil
         end,
         ClientHooks = {
             {
@@ -895,4 +1003,224 @@ StatusEffects = {
             }
         }
     },
+    Fatigue = {
+        Icon = "SEF_Icons/fatigue.png",
+        Type = "DEBUFF",
+        Desc = "You are unable to sprint.",
+        EffectBegin = function(ent)
+            if not ent.ExhaustEffectSound then
+                EmitSound("Exhaust.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.FatigueEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.FatigueEffectSound = nil
+            if ent:IsPlayer() then
+                ent:SprintEnable()
+            end
+        end,
+        Effect = function(ent, time)
+            local TimeLeft = ent:GetTimeLeft("Fatigue")
+            if ent:IsPlayer() then
+                ent:SprintDisable()
+            end
+        end
+    },
+    Vuln = {
+        Icon = "SEF_Icons/vuln.png",
+        Name = "Vulnerability",
+        Desc = "Debuffs are 50% longer.",
+        Type = "DEBUFF",
+        EffectBegin = function(ent)
+            if not ent.VulnEffectSound then
+                EmitSound("Exposed.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.VulnEffectSound = true
+            end
+        end,
+        Effect = function(ent, time)
+            for effectName, effectData in pairs(EntActiveEffects[ent:EntIndex()]) do
+                if StatusEffects[effectName].Type == "DEBUFF" and not effectData.VulnAffected and StatusEffects[effectName].Name ~= "Vulnerability" then
+                    local NewDuration = EntActiveEffects[ent:EntIndex()][effectName].Duration * 1.5
+                    ent:ChangeDuration(effectName, NewDuration)
+                    effectData.VulnAffected = true
+                end
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.VulnEffectSound = nil
+        end
+    },
+    Concussion = {
+        Icon = "SEF_Icons/concussion.png",
+        Desc = "You have problems with hearing and seeing.", 
+        Type = "DEBUFF",
+        EffectBegin = function(ent)
+            if not ent.ConcussionEffectSound then
+                EmitSound("Blindness.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent.ConcussionEffectSound = true
+            end
+        end,
+        EffectEnd = function(ent)
+            ent.ConcussionEffectSound = nil
+        end,  
+        ClientHooks = {
+            -- Overlay na ekran
+            {
+                HookType = "HUDPaintBackground",
+                HookFunction = function()
+                    local ply = LocalPlayer()
+                    local TimeLeft = ply:GetTimeLeft("Concussion")
+                    local ConcScreen = Material("SEF_Overlay/SEFConcOverlay.png")
+        
+                    if ply:HaveEffect("Concussion") then
+                        local alpha = 255
+                        local fadeStartTime = 0.5
+
+                        LocalPlayer():SetDSP(7, false)
+                        LocalPlayer():EmitSound("npc/combine_gunship/dropship_engine_distant_loop1.wav", 45, 100, 0.2)
+        
+                        if TimeLeft <= fadeStartTime then
+                            alpha = math.max(0, 255 * (TimeLeft / fadeStartTime))
+                        end
+    
+                        surface.SetDrawColor(255, 255, 255, alpha)
+                        surface.SetMaterial(ConcScreen)
+                        surface.DrawTexturedRect(0, 0, ScrW(), ScrH())
+                    else
+                        LocalPlayer():SetDSP(0, false)
+                        LocalPlayer():StopSound("npc/combine_gunship/dropship_engine_distant_loop1.wav")
+                    end
+                end
+            },
+            -- Efekt szarości i lekkiego rozmazania
+            {
+                HookType = "RenderScreenspaceEffects",
+                HookFunction = function()
+                    local ply = LocalPlayer()
+                    if ply:HaveEffect("Concussion") then
+                        local fadeStartTime = 0.5
+                        local TimeLeft = ply:GetTimeLeft("Concussion")
+                        local multiplier = 0.1
+            
+                        -- Stopniowe rozjaśnianie, ograniczone do zakresu od 0 do 1
+                        if TimeLeft <= fadeStartTime then
+                            multiplier = math.Clamp(1 - (TimeLeft / fadeStartTime) * 0.9, 0, 1)
+                        end
+            
+                        DrawColorModify({
+                            ["$pp_colour_addr"] = 0,
+                            ["$pp_colour_addg"] = 0,
+                            ["$pp_colour_addb"] = 0,
+                            ["$pp_colour_brightness"] = -0.1,
+                            ["$pp_colour_contrast"] = 0.7,
+                            ["$pp_colour_colour"] = multiplier, -- Ograniczone rozjaśnianie
+                            ["$pp_colour_mulr"] = 0,
+                            ["$pp_colour_mulg"] = 0,
+                            ["$pp_colour_mulb"] = 0
+                        })
+            
+                        -- Dodanie lekkiego rozmazania
+                        DrawMotionBlur(0.1, 0.8, 0.05)
+                    end
+                end
+            },
+            -- Ruch kamery symulujący ogłuszenie
+            {
+                HookType = "CalcView",
+                HookFunction = function(ply, pos, angles, fov)
+                    if ply:HaveEffect("Concussion") then
+                        local time = CurTime()
+                        local view = {}
+                        view.origin = pos
+                        view.angles = angles + Angle(math.sin(time * 1.5) * 2, math.sin(time * 2) * 2, 0)
+                        view.fov = fov
+                        return view
+                    end
+                end
+            }
+        },
+        ServerHooks = {},
+    }
+    
+    --[[
+    Immortality = {
+        Icon = "SEF_Icons/immortal.png",
+        Desc = "True Blessing... \nYou have shield which makes you immune to all damage sources. \n All Damage is deflected to attackers. \nYou can't do anything while Immortality is active.",
+        Type = "BUFF",
+        SoftDelete = true,
+        DisplayFunction = function(ent)
+            if IsValid(ent) and ent:HaveEffect("Immortality") then
+                if not ent.ImmortalityModel then
+                    -- Tworzenie modelu i przypięcie do encji
+                    local model = ClientsideModel("models/hunter/misc/shell2x2.mdl")
+                    if IsValid(model) then
+                        -- Przypięcie do encji bez rotacji
+                        model:SetParent(ent)
+                        model:SetPos(ent:WorldSpaceCenter())
+                        model:SetAngles(Angle(0, 0, 0))  -- Ustawienie stałej orientacji
+                        model:SetMaterial("Models/effects/comball_tape")
+                        model:SetNoDraw(false)
+    
+                        -- Przechowywanie referencji do modelu
+                        ent.ImmortalityModel = model
+                    end
+                end
+    
+                -- Aktualizacja pozycji modelu co klatkę, bez zmiany jego rotacji
+                if IsValid(ent.ImmortalityModel) then
+                    ent.ImmortalityModel:SetPos(ent:WorldSpaceCenter())
+                    ent.ImmortalityModel:SetAngles(Angle(0, 0, 0))  -- Zachowanie stałej orientacji
+                end
+    
+                -- Usunięcie modelu, gdy efekt wygasa lub gracz umiera
+                if (ent:GetEntTimeLeft("Immortality") <= 0.1) or (ent:Health() <= 0) or (ent:IsPlayer() and not ent:Alive()) then
+                    ent.ImmortalityModel:Remove()
+                    ent.ImmortalityModel = nil
+                end
+            end
+
+            if IsValid(ent) and not ent:HaveEffect("Immortality") then
+                if IsValid(ent.ImmortalityModel) then
+                    ent.ImmortalityModel:Remove()
+                    ent.ImmortalityModel = nil
+                end
+            end
+        end,
+        Effect = function(ent, time)
+            if ent:IsPlayer() then
+                ent:SetActiveWeapon(NULL)
+            end
+        end,
+        ServerHooks = {
+            {
+                HookType = "EntityTakeDamage",
+                HookFunction = function(ent, dmg)
+                    if ent:HaveEffect("Immortality") then
+                        local attacker = dmg:GetAttacker()  -- Pobranie atakującego
+                        
+                        -- Sprawdzenie, czy obrażenia nie są wynikiem efektu "Immortality"
+                        if IsValid(attacker) and attacker ~= ent and dmg:GetDamage() > 0 then
+                            local damageAmount = dmg:GetDamage()  -- Pobranie zadanych obrażeń
+        
+                            -- Zablokowanie obrażeń dla encji z efektem "Immortality"
+                            dmg:SetDamage(0)
+        
+                            -- Tworzenie nowych obrażeń dla atakującego
+                            local reflectedDmg = DamageInfo()
+                            reflectedDmg:SetDamage(damageAmount)
+                            reflectedDmg:SetAttacker(ent)
+                            reflectedDmg:SetInflictor(ent)
+                            reflectedDmg:SetDamageType(dmg:GetDamageType())
+
+                            if not attacker:HaveEffect("Immortality") then 
+                                attacker:TakeDamageInfo(reflectedDmg)
+                            end
+                        else
+                            dmg:SetDamage(0)
+                        end
+                    end
+                end
+            }
+        }             
+    }]]--    
 }
