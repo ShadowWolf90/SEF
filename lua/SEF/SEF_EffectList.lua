@@ -1140,6 +1140,87 @@ StatusEffects = {
             }
         },
         ServerHooks = {},
+    },
+    DarkVision = {
+        Icon = "SEF_Icons/darkvision.png",
+        Desc = "You are seeing things in dark matter...", 
+        Type = "DEBUFF",
+        ClientHooks = {
+            -- Overlay na ekran
+            {
+                HookType = "HUDPaintBackground",
+                HookFunction = function()
+                    local ply = LocalPlayer()
+                    local TimeLeft = ply:GetTimeLeft("DarkVision")
+                    local ConcScreen = Material("SEF_Overlay/SEFConcOverlay.png")
+        
+                    if ply:HaveEffect("DarkVision") then
+                        local fadeStartTime = 0.5
+
+                        local minAlpha = 155
+                        local maxAlpha = 255
+                        local frequency = 5 
+
+                        local alpha = minAlpha + (maxAlpha - minAlpha) * 0.5 * (1 + math.sin(CurTime() * frequency))
+            
+                        if TimeLeft <= fadeStartTime then
+                            alpha = math.max(0, alpha * (TimeLeft / fadeStartTime))
+                        end
+    
+                        surface.SetDrawColor(255, 255, 255, alpha)
+                        surface.SetMaterial(ConcScreen)
+                        surface.DrawTexturedRect(0, 0, ScrW(), ScrH())
+                    end
+                end
+            },
+            -- Efekt szarości i lekkiego rozmazania
+            {
+                HookType = "RenderScreenspaceEffects",
+                HookFunction = function()
+                    local ply = LocalPlayer()
+                    if ply:HaveEffect("DarkVision") then
+                        local fadeStartTime = 0.5
+                        local TimeLeft = ply:GetTimeLeft("DarkVision")
+                        local multiplier = 0.1
+            
+                        -- Stopniowe rozjaśnianie, ograniczone do zakresu od 0 do 1
+                        if TimeLeft <= fadeStartTime then
+                            multiplier = math.Clamp(1 - (TimeLeft / fadeStartTime) * 0.9, 0, 1)
+                        end
+            
+                        DrawColorModify({
+                            ["$pp_colour_addr"] = 0,
+                            ["$pp_colour_addg"] = 0,
+                            ["$pp_colour_addb"] = 0,
+                            ["$pp_colour_brightness"] = -0.1,
+                            ["$pp_colour_contrast"] = 0.7,
+                            ["$pp_colour_colour"] = multiplier, -- Ograniczone rozjaśnianie
+                            ["$pp_colour_mulr"] = 0,
+                            ["$pp_colour_mulg"] = 0,
+                            ["$pp_colour_mulb"] = 0
+                        })
+            
+                        -- Dodanie lekkiego rozmazania
+                        DrawMotionBlur(0.1, 0.8, 0.02)
+                    end
+                end
+            },
+            -- Ruch kamery symulujący ogłuszenie
+            {
+                HookType = "CalcView",
+                HookFunction = function(ply, pos, angles, fov)
+                    if ply:HaveEffect("Concussion") then
+                        local time = CurTime()
+                        local view = {}
+                        view.origin = pos
+                        view.angles = angles + Angle(math.sin(time * 1.5) * 2, math.sin(time * 2) * 2, 0)
+                        view.fov = fov
+                        return view
+                    end
+                end
+            }
+        },
+        ServerHooks = {},
     }
     
     --[[
