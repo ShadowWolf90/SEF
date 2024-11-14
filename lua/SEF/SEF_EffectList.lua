@@ -1098,27 +1098,6 @@ StatusEffects = {
                 HookFunction = function()
                     local ply = LocalPlayer()
                     if ply:HaveEffect("Concussion") then
-                        local fadeStartTime = 0.5
-                        local TimeLeft = ply:GetTimeLeft("Concussion")
-                        local multiplier = 0.1
-            
-                        -- Stopniowe rozjaśnianie, ograniczone do zakresu od 0 do 1
-                        if TimeLeft <= fadeStartTime then
-                            multiplier = math.Clamp(1 - (TimeLeft / fadeStartTime) * 0.9, 0, 1)
-                        end
-            
-                        DrawColorModify({
-                            ["$pp_colour_addr"] = 0,
-                            ["$pp_colour_addg"] = 0,
-                            ["$pp_colour_addb"] = 0,
-                            ["$pp_colour_brightness"] = -0.1,
-                            ["$pp_colour_contrast"] = 0.7,
-                            ["$pp_colour_colour"] = multiplier, -- Ograniczone rozjaśnianie
-                            ["$pp_colour_mulr"] = 0,
-                            ["$pp_colour_mulg"] = 0,
-                            ["$pp_colour_mulb"] = 0
-                        })
-            
                         -- Dodanie lekkiego rozmazania
                         DrawMotionBlur(0.1, 0.8, 0.05)
                     end
@@ -1199,9 +1178,6 @@ StatusEffects = {
                             ["$pp_colour_mulg"] = 0,
                             ["$pp_colour_mulb"] = 0
                         })
-            
-                        -- Dodanie lekkiego rozmazania
-                        DrawMotionBlur(0.1, 0.8, 0.02)
                     end
                 end
             },
@@ -1222,7 +1198,6 @@ StatusEffects = {
         },
         ServerHooks = {},
     }
-    
     --[[
     Immortality = {
         Icon = "SEF_Icons/immortal.png",

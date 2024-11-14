@@ -240,10 +240,10 @@ if CLIENT then
     local function DrawBoxStatusEffectTimer(x, y, effectName, effectDesc, duration, startTime)
         local effect = StatusEffects[effectName]
         if not effect then return end
-
+    
         local mouseX = gui.MouseX()
         local mouseY = gui.MouseY()
-        ScaleUI = GetConVar("SEF_ScaleUI"):GetFloat()
+        local ScaleUI = GetConVar("SEF_ScaleUI"):GetFloat()
     
         surface.SetFont("SEFFont")
     
@@ -263,72 +263,57 @@ if CLIENT then
         local StackNumberWidth, StackNumberHeight
         if PlayerEffectStacks[effectName] then
             StackAmount = PlayerEffectStacks[effectName]
-            if effect.StackName then
-                StackName = tostring(effect.StackName)
-            else
-                StackName = "Stacks"
-            end
+            StackName = effect.StackName or "Stacks"
             StackWidth, StackHeight = surface.GetTextSize(StackName)
             StackNumberWidth, StackNumberHeight = surface.GetTextSize(StackAmount)
         else
-            StackAmount = 0
-            StackName = nil
-            StackWidth, StackHeight = nil
+            StackAmount, StackName, StackWidth, StackHeight = 0, nil, nil, nil
             StackNumberWidth, StackNumberHeight = nil
         end
     
         local icon = Material(effect.Icon)
     
-        if effect.Type == "BUFF" then
-            surface.SetDrawColor(9, 73, 0)
-        else
-            surface.SetDrawColor(53, 0, 0)
-        end
-    
+        local TextColor, BarColor
         if effect.Type == "BUFF" then
             surface.SetDrawColor(30, 255, 0, 255)
-            TextColor = Color(30, 255, 0, 255)
-            BarColor = Color(30, 125, 0)
+            TextColor, BarColor = Color(30, 255, 0, 255), Color(30, 125, 0)
         else
             surface.SetDrawColor(255, 0, 0, 255)
-            TextColor = Color(255, 0, 0, 255)
-            BarColor = Color(80, 0, 0)
+            TextColor, BarColor = Color(255, 0, 0, 255), Color(80, 0, 0)
         end
-
+    
         local remainingTime = duration - (CurTime() - startTime)
-        local TimeDisplay
-        local barWidth = 147 * (remainingTime / duration)  -- 146 to szerokość paska, aby zmieścił się w OutlinedRect
-        if remainingTime == math.huge then
-            TimeDisplay = "∞"
-            barWidth = 147
-        else
-            TimeDisplay = math.Round(remainingTime)
-            barWidth = 147 * (remainingTime / duration)
-        end
-    
-        surface.SetDrawColor(80, 80, 80)
-        surface.DrawOutlinedRect(x, y, 150, 50, 2)
-        surface.SetDrawColor(80, 80, 80, 100)
-        surface.DrawRect(x, y, 150, 50, 2)
+        local TimeDisplay = remainingTime == math.huge and "∞" or remainingTime < 10 and string.format("%.1f", remainingTime) or remainingTime > 10 and math.Round(remainingTime)
+        local barWidth = 147 * (remainingTime / duration)
 
-        surface.SetDrawColor(BarColor)
-        surface.DrawRect(x + 2, y + 2, barWidth, 46)
+        if remainingTime == math.huge then barWidth = 148 end
     
-        -- Rysowanie ikony w środku
+        -- Scaled background rect
+        surface.SetDrawColor(80, 80, 80)
+        surface.DrawOutlinedRect(x * ScaleUI, y * ScaleUI, 150 * ScaleUI, 50 * ScaleUI, 2)
+        surface.SetDrawColor(80, 80, 80, 100)
+        surface.DrawRect(x * ScaleUI, y * ScaleUI, 150 * ScaleUI, 50 * ScaleUI)
+    
+        -- Scaled inner colored bar
+        surface.SetDrawColor(BarColor)
+        surface.DrawRect((x + 2) * ScaleUI, (y + 2) * ScaleUI, barWidth * ScaleUI, 46 * ScaleUI)
+    
+        -- Icon
         surface.SetMaterial(icon)
         surface.SetDrawColor(255, 255, 255, 255)
-        surface.DrawTexturedRect(x + 10 * ScaleUI, y + 8 * ScaleUI, 25 * ScaleUI, 25 * ScaleUI)
-
-        draw.SimpleText(TimeDisplay, "SEFFont", x + 140, y + 11.5 * ScaleUI, Color(255, 255, 255), TEXT_ALIGN_RIGHT, TEXT_ALIGN_LEFT)
+        surface.DrawTexturedRectRotated((x + 25) * ScaleUI, (y + 25) * ScaleUI, 30 * ScaleUI, 30 * ScaleUI, 0)
+    
+        -- Remaining time display
+        draw.SimpleText(TimeDisplay, "SEFFont", (x + 140) * ScaleUI, (y + 15) * ScaleUI, Color(255, 255, 255), TEXT_ALIGN_RIGHT, TEXT_ALIGN_LEFT)
+    
+        -- Stack display
         if StackAmount > 1 then
-            draw.SimpleText(StackName .. ": " .. StackAmount, "SEFFont", x + 155, y + 11.5 * ScaleUI, Color(255, 238, 0), TEXT_ALIGN_LEFT, TEXT_ALIGN_LEFT)
+            draw.SimpleText(StackName .. ": " .. StackAmount, "SEFFont", (x + 155) * ScaleUI, (y + 15) * ScaleUI, Color(255, 238, 0), TEXT_ALIGN_LEFT, TEXT_ALIGN_LEFT)
         end
     
-        if mouseX >= x and mouseX <= x + 150 * ScaleUI and mouseY >= y and mouseY <= y + 50 * ScaleUI then
-            -- Przesunięcie opisu, jeśli jest poza ekranem
-            local tooltipX = mouseX
-            local tooltipY = mouseY + 30
-    
+        -- Tooltip for hover
+        if mouseX >= x * ScaleUI and mouseX <= (x + 150) * ScaleUI and mouseY >= y * ScaleUI and mouseY <= (y + 50) * ScaleUI then
+            local tooltipX, tooltipY = mouseX, mouseY + 30
             if tooltipX + TotalWidth + 10 > ScrW() then
                 tooltipX = ScrW() - TotalWidth - 10
             end
@@ -337,20 +322,17 @@ if CLIENT then
             end
     
             surface.SetDrawColor(0, 0, 0, 200)
-            surface.DrawRect(tooltipX, tooltipY, TotalWidth + 10, TotalHeight)
+            surface.DrawRect(tooltipX, tooltipY, (TotalWidth + 10) * ScaleUI, TotalHeight * ScaleUI)
             
-            -- Nazwa efektu
             draw.SimpleText(FormattedName, "SEFFont", tooltipX + 5, tooltipY, Color(255, 208, 0), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
             
-            -- Opis efektu (jeśli jest)
             if DescH > 0 then
                 draw.DrawText(effectDesc, "SEFFont", tooltipX + 5, tooltipY + NameH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
             end
-            
-            -- Czas trwania efektu
             draw.SimpleText("Duration: " .. duration .. " seconds", "SEFFont", tooltipX + 5, tooltipY + NameH + DescH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
         end
     end
+    
 
     local function DrawActivePassive(x, y, passiveName, passiveDesc)
         local effect = PassiveEffects[passiveName]
