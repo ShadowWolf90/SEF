@@ -7,6 +7,13 @@ if CLIENT then
     PlayerPassiveStacks = {}
     AllEntEffects = {}
 
+    local LastValidEntities = {}
+
+    local CachedMaterials = {
+        Circle = Material("SEF_Icons/StatusEffectCircle.png"),
+        Square = Material("SEF_Icons/PassiveSquare.png")
+    }
+
     surface.CreateFont("SEFFont", {
         font = "Stratum2 Md",
         size = 20,
@@ -136,7 +143,7 @@ if CLIENT then
         surface.DrawPoly(vertices)
     
         surface.SetDrawColor(80, 80, 80)
-        surface.SetMaterial(Material("SEF_Icons/StatusEffectCircle.png"))
+        surface.SetMaterial(CachedMaterials.Circle)
         surface.DrawTexturedRectRotated(centerX, centerY, 50 * ScaleUI, 50 * ScaleUI, 0)
     
         -- Rysowanie ikony w środku
@@ -181,62 +188,6 @@ if CLIENT then
         end
     end
     
-
-    local function DrawStatusEffectTimerMini(x, y, effectName, duration, startTime)
-        local effect = StatusEffects[effectName]
-        if not effect then return end
-
-        ScaleUI = GetConVar("SEF_ScaleUI"):GetFloat()
-        local AdjustValue
-
-        if ScaleUI > 2 then
-            AdjustValue = ScaleUI * 0.5
-        else
-            AdjustValue = 1
-        end
-
-
-        local icon = Material(effect.Icon)
-        local radius = 11.5 * AdjustValue
-        local centerX, centerY = x, y 
-
-    
-        -- Oblicz upływ czasu
-        local elapsedTime = CurTime() - startTime
-        local fraction = math.Clamp(elapsedTime / duration, 0, 1)
-        local startAngle = 270  -- Początkowy kąt (góra)
-        local angle = 360 * (1 - fraction)  -- Odwrotność frakcji aby się "opróżniało"
-    
-        -- Rysowanie kółka
-        local vertices = {}
-        table.insert(vertices, { x = centerX, y = centerY })
-    
-        for i = startAngle, startAngle + angle, 1 do
-            local rad = math.rad(i)
-            table.insert(vertices, {
-                x = centerX + math.cos(rad) * radius,
-                y = centerY + math.sin(rad) * radius
-            })
-        end
-    
-        if StatusEffects[effectName].Type == "BUFF" then
-            surface.SetDrawColor(30, 255, 0, 255)
-        else
-            surface.SetDrawColor(255, 0, 0, 255)
-        end
-        draw.NoTexture()
-        surface.DrawPoly(vertices)
-
-        surface.SetDrawColor(80, 80, 80)
-        surface.SetMaterial(Material("SEF_Icons/StatusEffectCircle.png"))
-        surface.DrawTexturedRectRotated(centerX, centerY, 23 * AdjustValue, 23 * AdjustValue, 0 )
-    
-        -- Rysowanie ikony w środku
-        surface.SetMaterial(icon)
-        surface.SetDrawColor(255, 255, 255, 255)
-        surface.DrawTexturedRectRotated(centerX, centerY, 18 * AdjustValue, 18 * AdjustValue, 0)
-    end
-
     local function DrawBoxStatusEffectTimer(x, y, effectName, effectDesc, duration, startTime)
         local effect = StatusEffects[effectName]
         if not effect then return end
@@ -383,7 +334,7 @@ if CLIENT then
     
         -- Rysowanie tła ikony
         surface.SetDrawColor(80, 80, 80)
-        surface.SetMaterial(Material("SEF_Icons/PassiveSquare.png"))
+        surface.SetMaterial(CachedMaterials.Square)
         surface.DrawTexturedRectRotated(centerX, centerY, 40 * ScaleUI, 40 * ScaleUI, 0)
     
         -- Rysowanie ikony
@@ -414,23 +365,14 @@ if CLIENT then
         return A:GetPos():DistToSqr( target ) < Dist
     end
     
-
     local function DisplayStatusEffects()
             
         local StatusEffX = GetConVar("SEF_StatusEffectX"):GetInt()
         local StatusEffY = GetConVar("SEF_StatusEffectY"):GetInt()
         local PassiveX = GetConVar("SEF_StatusEffectX"):GetInt()
         local PassiveY = GetConVar("SEF_StatusEffectY"):GetInt() + 25
-        local ShowDisplay = GetConVar("SEF_StatusEffectDisplay"):GetBool()
         local StatusEffectStyle = GetConVar("SEF_StatusEffectHUDStyle"):GetInt()
-        local THROverHead
         local Margin = 20
-
-        if ConVarExists("THR_OverheadUI") then
-            THROverHead = GetConVar("THR_OverheadUI"):GetBool()
-        else
-            THROverHead = false
-        end
 
         for effectName, effectData in SortedPairsByMemberValue(ActiveEffects, "StartTime", false) do
 
@@ -459,52 +401,145 @@ if CLIENT then
 
         end
 
-        if ShowDisplay then
-            for entID, statuseffects in pairs(AllEntEffects) do
-                local ent = Entity(entID)
-                if IsValid(ent) and entID ~= LocalPlayer():EntIndex() then
-                    local PosClient = ent:GetPos() + Vector(0, 0, 80)
-                    local screenPos = PosClient:ToScreen()
-                    local effectAmount = table.Count(statuseffects)
-                    local TotalWidth = (effectAmount - 1) * 25
-                    local startX = screenPos.x - (TotalWidth / 2)
+    end
 
-                    local tr = util.TraceLine({
-                        start = plyEyePos,
-                        endpos = EntPos,
-                        filter = LocalPlayer()
-                    })
+
+    ----------------------3D RENDERING OF EFFECTS-------------------------------------
+
+    local function Draw3DStatusEffect(ent, effectName, duration, startTime, offset)
+        local effect = StatusEffects[effectName]
+        if not effect then return end
+        if not WithinDistance(LocalPlayer(), ent:GetPos(), 1500) then return end
+
+        local EntPos = ent:GetPos() + ent:GetUp() * (ent:OBBMaxs().z + 10)
+        local EntAngle = (EntPos - EyePos()):GetNormalized():Angle()
+
+        local rightVector = EntAngle:Right() -- Wektor prostopadły w lokalnym układzie
+        EntPos = EntPos + rightVector * offset -- Dodanie przesunięcia względem obrotu kamery
     
-                    for effectName, effectData in SortedPairsByMemberValue(statuseffects, "Duration", true) do
-                        local effectCount = table.Count(statuseffects)
-                        if tr.HitPos and WithinDistance(LocalPlayer(), PosClient, 500) then
-                            local remainingTime = effectData.Duration - (CurTime() - effectData.StartTime)
-                            if remainingTime > 0 then
-                                if THROverHead and (ent:IsNPC() or ent:IsNextBot() and not ent.IsLambdaPlayer) then
-                                    DrawStatusEffectTimerMini(startX, screenPos.y, effectName, effectData.Duration, effectData.StartTime)
-                                elseif THROverHead and ent.IsLambdaPlayer and ent:Team() ~= LocalPlayer():Team() then
-                                    DrawStatusEffectTimerMini(startX, screenPos.y, effectName, effectData.Duration, effectData.StartTime)
-                                elseif not THROverHead then
-                                    DrawStatusEffectTimerMini(startX, screenPos.y, effectName, effectData.Duration, effectData.StartTime)
-                                end
-                                startX = startX + 25
-                            else
-                                -- Usuwamy efekt, jeśli czas jego trwania się skończył
-                                AllEntEffects[entID][effectName] = nil
-                                if table.Count(AllEntEffects[entID]) == 0 then
-                                    AllEntEffects[entID] = nil  -- Usuwamy podtabelę, jeśli nie ma już żadnych efektów
-                                end
-                            end
-                        end
-                    end
-                elseif not IsValid(ent) then
-                    print("[Status Effect Framework] Removed data about no longer valid entity.")
-                    AllEntEffects[entID] = nil
-                end
+        -- Rotacja 3D2D
+        EntAngle:RotateAroundAxis(EntAngle:Up(), -90)
+        EntAngle:RotateAroundAxis(EntAngle:Forward(), 90)
+    
+        -- Skalowanie i ikona
+        local ScaleUI = GetConVar("SEF_ScaleUI"):GetFloat()
+        local AdjustValue = ScaleUI > 2 and ScaleUI * 0.5 or 1
+    
+        local icon = Material(effect.Icon)
+        local radius = 11.5 * AdjustValue
+        local innerRadius = 9.5 * AdjustValue
+    
+        -- Obliczanie czasu trwania
+        local elapsedTime = CurTime() - startTime
+        local fraction = math.Clamp(elapsedTime / duration, 0, 1)
+        local startAngle = 270
+        local angle = 360 * (1 - fraction)
+    
+        -- Rysowanie efektu
+        cam.Start3D2D(EntPos, EntAngle, 0.5)
+            -- Pasek wypełnienia efektu
+
+            local innerVertices = {}
+            table.insert(innerVertices, { x = 0, y = 0 })
+        
+            for i = 0, 360, 1 do
+                local rad = math.rad(i)
+                table.insert(innerVertices, {
+                    x = math.cos(rad) * innerRadius,
+                    y = math.sin(rad) * innerRadius
+                })
+            end
+        
+            if effect.Type == "BUFF" then
+                surface.SetDrawColor(9, 73, 0)
+            else
+                surface.SetDrawColor(53, 0, 0)
+            end
+            draw.NoTexture()
+            surface.DrawPoly(innerVertices)
+
+
+            local vertices = {}
+            table.insert(vertices, { x = 0, y = 0 })
+            for i = startAngle, startAngle + angle, 1 do
+                local rad = math.rad(i)
+                table.insert(vertices, {
+                    x = math.cos(rad) * radius,
+                    y = math.sin(rad) * radius
+                })
+            end
+    
+            if StatusEffects[effectName].Type == "BUFF" then
+                surface.SetDrawColor(30, 255, 0, 255)
+            else
+                surface.SetDrawColor(255, 0, 0, 255)
+            end
+            draw.NoTexture()
+            surface.DrawPoly(vertices)
+    
+            -- Ikona okręgu
+            surface.SetDrawColor(80, 80, 80)
+            surface.SetMaterial(CachedMaterials.Circle)
+            surface.DrawTexturedRectRotated(0, 0, 23 * AdjustValue, 23 * AdjustValue, 0)
+    
+            -- Rysowanie ikony efektu
+            surface.SetMaterial(icon)
+            surface.SetDrawColor(255, 255, 255, 255)
+            surface.DrawTexturedRectRotated(0, 0, 18 * AdjustValue, 18 * AdjustValue, 0)
+        cam.End3D2D()
+    end
+
+    local function UpdateVisibleEntities()
+        local visibleEntities = {}
+    
+        for entID, statuseffects in pairs(AllEntEffects) do
+            local ent = Entity(entID)
+            if IsValid(ent) and ent ~= LocalPlayer() and WithinDistance(LocalPlayer(), ent:GetPos(), 1500) then
+                local distance = LocalPlayer():GetPos():DistToSqr(ent:GetPos()) -- Kwadrat odległości (optymalniejsze)
+                table.insert(visibleEntities, { ent = ent, dist = distance })
+            elseif not IsValid(ent) then
+                print("[Status Effect Framework] Removed data about no longer valid entity.")
+                AllEntEffects[entID] = nil
             end
         end
-
+    
+        -- Sortowanie bytów według odległości (rosnąco)
+        table.SortByMember(visibleEntities, "dist", true)
+    
+        -- Zachowaj tylko 10 najbliższych
+        LastValidEntities = {}
+        for i = 1, math.min(10, #visibleEntities) do
+            table.insert(LastValidEntities, visibleEntities[i].ent)
+        end
     end
+
+    timer.Create("UpdateVisibleEntities", 0.5, 0, UpdateVisibleEntities)
+    
+    
+
+    -- Funkcja rysująca efekty
+    local function DisplayStatusEffects3D()
+        if not GetConVar("SEF_StatusEffectDisplay"):GetBool() then return end
+
+        -- Pętla tylko przez widoczne encje
+        for _, ent in ipairs(LastValidEntities) do
+            local statuseffects = AllEntEffects[ent:EntIndex()]
+            if not statuseffects then continue end
+
+            -- Oblicz przesunięcia
+            local effectCount = table.Count(statuseffects)
+            local spacing = 13
+            local startOffset = -((effectCount - 1) * spacing) / 2
+
+            local index = 0
+            for effectName, effectData in SortedPairsByMemberValue(statuseffects, "StartTime", true) do
+                local offset = startOffset + index * spacing
+                Draw3DStatusEffect(ent, effectName, effectData.Duration, effectData.StartTime, offset)
+                index = index + 1
+            end
+        end
+    end
+    
 
 
     net.Receive("SEF_AddEffect", function()
@@ -654,5 +689,7 @@ if CLIENT then
         end
     end)
 
+
     hook.Add("HUDPaint", "DisplayStatusEffectsHUD", DisplayStatusEffects)
+    hook.Add("PostDrawTranslucentRenderables", "DisplayStatusEffectsHUD3D", DisplayStatusEffects3D)
 end

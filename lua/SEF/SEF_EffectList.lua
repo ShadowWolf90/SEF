@@ -204,7 +204,7 @@ StatusEffects = {
         Desc = "Received damage is doubled.",
         EffectBegin = function(ent)
             if not ent.ExposedEffectSound then
-                EmitSound("exposed.mp3", ent:GetPos(), 0, CHAN_AUTO, 1, 100)
+                ent:EmitSound("exposed.mp3", 100, 100, 0.3)
                 ent.ExposedEffectSound = true
             end
         end,
@@ -217,7 +217,7 @@ StatusEffects = {
                 HookFunction = function(target, dmginfo)
                     if target and target:HaveEffect("Exposed") then
                         dmginfo:ScaleDamage(2)
-                        target:EmitSound("npc/zombie/zombie_hit.wav", 110, 100, 1)
+                        target:EmitSound("npc/zombie/zombie_hit.wav", 110, 100, 0.2)
                     end
                 end
             }
