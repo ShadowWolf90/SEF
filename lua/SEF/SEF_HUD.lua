@@ -408,10 +408,11 @@ if CLIENT then
 
     local function Draw3DStatusEffect(ent, effectName, duration, startTime, offset)
         local effect = StatusEffects[effectName]
+        if not IsValid(ent) then return end
         if not effect then return end
         if not WithinDistance(LocalPlayer(), ent:GetPos(), 1500) then return end
 
-        local EntPos = ent:GetPos() + ent:GetUp() * (ent:OBBMaxs().z + 10)
+        local EntPos = ent:GetPos() + ent:GetUp() * (ent:OBBMaxs().z + 15)
         local EntAngle = (EntPos - EyePos()):GetNormalized():Angle()
 
         local rightVector = EntAngle:Right() -- Wektor prostopadły w lokalnym układzie
@@ -492,14 +493,13 @@ if CLIENT then
     local function UpdateVisibleEntities()
         local visibleEntities = {}
     
-        for entID, statuseffects in pairs(AllEntEffects) do
-            local ent = Entity(entID)
+        for ent, statuseffects in pairs(AllEntEffects) do
             if IsValid(ent) and ent ~= LocalPlayer() and WithinDistance(LocalPlayer(), ent:GetPos(), 1500) then
                 local distance = LocalPlayer():GetPos():DistToSqr(ent:GetPos()) -- Kwadrat odległości (optymalniejsze)
                 table.insert(visibleEntities, { ent = ent, dist = distance })
             elseif not IsValid(ent) then
                 print("[Status Effect Framework] Removed data about no longer valid entity.")
-                AllEntEffects[entID] = nil
+                AllEntEffects[ent] = nil
             end
         end
     
@@ -523,7 +523,7 @@ if CLIENT then
 
         -- Pętla tylko przez widoczne encje
         for _, ent in ipairs(LastValidEntities) do
-            local statuseffects = AllEntEffects[ent:EntIndex()]
+            local statuseffects = AllEntEffects[ent]
             if not statuseffects then continue end
 
             -- Oblicz przesunięcia
@@ -565,45 +565,45 @@ if CLIENT then
     
 
     net.Receive("SEF_EntityAdd", function()
-        local EntID = net.ReadInt(32)
+        local Ent = net.ReadEntity()
         local EffectName = net.ReadString()
         local Duration = net.ReadFloat()
         local TimeApply = net.ReadFloat()
 
-        if not AllEntEffects[EntID] then
-            AllEntEffects[EntID] = {}
+        if not AllEntEffects[Ent] then
+            AllEntEffects[Ent] = {}
         end
 
-        AllEntEffects[EntID][EffectName] = {
+        AllEntEffects[Ent][EffectName] = {
             Duration = Duration,
             StartTime = TimeApply
         }
     end)
 
     net.Receive("SEF_EntityRemove", function()
-        local EntID = net.ReadInt(32)
+        local Ent = net.ReadEntity()
         local EffectName = net.ReadString()
 
-        if AllEntEffects[EntID] and AllEntEffects[EntID][EffectName] then
-            AllEntEffects[EntID][EffectName] = nil
+        if AllEntEffects[Ent] and AllEntEffects[Ent][EffectName] then
+            AllEntEffects[Ent][EffectName] = nil
             
             -- Usuń podtabelę jeśli nie ma już żadnych efektów
-            if next(AllEntEffects[EntID]) == nil then
-                AllEntEffects[EntID] = nil
+            if next(AllEntEffects[Ent]) == nil then
+                AllEntEffects[Ent] = nil
             end
         end
     end)
 
     net.Receive("SEF_UpdateData", function()
-        local EntID = net.ReadInt(32)
+        local Ent = net.ReadEntity()
         local EffectName = net.ReadString()
         local ChangedTime = net.ReadFloat()
 
-        if AllEntEffects[EntID] and AllEntEffects[EntID][EffectName] then
-            AllEntEffects[EntID][EffectName].Duration = ChangedTime
+        if AllEntEffects[Ent] and AllEntEffects[Ent][EffectName] then
+            AllEntEffects[Ent][EffectName].Duration = ChangedTime
         end
 
-        if EntID == LocalPlayer():EntIndex() then
+        if Ent == LocalPlayer() then
             if ActiveEffects[EffectName] then
                 ActiveEffects[EffectName].Duration = ChangedTime
             end

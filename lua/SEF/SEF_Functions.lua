@@ -27,23 +27,23 @@ if SERVER then
         local effect = StatusEffects[effectName]
         if effect and (self:IsPlayer() or self:IsNPC() or self:IsNextBot()) then
     
-            local EntID = self:EntIndex()
+            
     
-            if not EntActiveEffects[EntID] then
+            if not EntActiveEffects[self] then
                 if SEF_LoggingMode:GetBool() then
                     print("[Status Effect Framework] Status Effect Table created for entity:", self)
                 end
-                EntActiveEffects[EntID] = {}
+                EntActiveEffects[self] = {}
             end
     
-            if not EntActiveEffects[EntID][effectName] then
+            if not EntActiveEffects[self][effectName] then
                 if SEF_LoggingMode:GetBool() then
                     print("[Status Effect Framework] Applied Effect:", effectName, "to entity:", self)
                 end
             end
     
             local args = {...}
-            EntActiveEffects[EntID][effectName] = {
+            EntActiveEffects[self][effectName] = {
                 Function = effect.Effect,
                 FunctionBegin = effect.EffectBegin,
                 FunctionEnd = effect.EffectEnd,
@@ -74,7 +74,7 @@ if SERVER then
             end
     
             net.Start("SEF_EntityAdd")
-            net.WriteInt(self:EntIndex(), 32)
+            net.WriteEntity(self)
             net.WriteString(effectName)
             net.WriteFloat(time)
             net.WriteFloat(CurTime())
@@ -91,9 +91,9 @@ if SERVER then
     
     function ENTITY:RemoveEffect(effectName)
         local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
-        local EntID = self:EntIndex()
-        if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
-            EntActiveEffects[EntID][effectName] = nil
+        
+        if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
+            EntActiveEffects[self][effectName] = nil
             if SEF_LoggingMode:GetBool() then
                 print("[Status Effect Framework] Removed Effect", effectName, "from entity:", self)
             end
@@ -105,7 +105,7 @@ if SERVER then
             end
 
             net.Start("SEF_EntityRemove")
-            net.WriteInt(self:EntIndex(), 32)
+            net.WriteEntity(self)
             net.WriteString(effectName)
             net.Broadcast()
         else
@@ -120,22 +120,22 @@ if SERVER then
         local effect = PassiveEffects[effectName]
         if effect and (self:IsPlayer() or self:IsNPC() or self:IsNextBot()) then
 
-            local EntID = self:EntIndex()
+            
 
-            if not EntActivePassives[EntID] then
+            if not EntActivePassives[self] then
                 if SEF_LoggingMode:GetBool() then
                     print("[Status Effect Framework] Passives Effect Table created for entity:", self)
                 end
-                EntActivePassives[EntID] = {}
+                EntActivePassives[self] = {}
             end
 
-            if not EntActivePassives[EntID][effectName] then
+            if not EntActivePassives[self][effectName] then
                 if SEF_LoggingMode:GetBool() then
                     print("[Status Effect Framework] Applied Passive Effect:", effectName, "to entity:", self)
                 end
             end
 
-            EntActivePassives[EntID][effectName] = {
+            EntActivePassives[self][effectName] = {
                 Function = effect.Effect,
             }
 
@@ -158,9 +158,9 @@ if SERVER then
     
     function ENTITY:RemovePassive(effectName)
         local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
-        local EntID = self:EntIndex()
-        if EntActivePassives[EntID] and EntActivePassives[EntID][effectName] then
-            EntActivePassives[EntID][effectName] = nil
+        
+        if EntActivePassives[self] and EntActivePassives[self][effectName] then
+            EntActivePassives[self][effectName] = nil
             if SEF_LoggingMode:GetBool() then
                 print("[Status Effect Framework] Removed Passive", effectName, "from entity:", self)
             end
@@ -179,12 +179,12 @@ if SERVER then
 
     function ENTITY:SoftRemoveEffect(effectName)
         local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
-        local EntID = self:EntIndex()
-        if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
+        
+        if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
             if SEF_LoggingMode:GetBool() then
                 print("[Status Effect Framework] Softremoved Effect", effectName, "from entity:", self)
             end
-            EntActiveEffects[EntID][effectName].Duration = 1
+            EntActiveEffects[self][effectName].Duration = 1
 
             if self:IsPlayer() then
                 net.Start("SEF_AddEffect")
@@ -195,7 +195,7 @@ if SERVER then
             end
 
             net.Start("SEF_EntityAdd")
-            net.WriteInt(self:EntIndex(), 32)
+            net.WriteEntity(self)
             net.WriteString(effectName)
             net.WriteFloat(1)
             net.WriteFloat(CurTime())
@@ -208,7 +208,7 @@ if SERVER then
     end
 
     function ENTITY:HaveEffect(effectName)
-        if EntActiveEffects[self:EntIndex()] and EntActiveEffects[self:EntIndex()][effectName] then
+        if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
             return true
         else
             return false
@@ -216,7 +216,7 @@ if SERVER then
     end
 
     function ENTITY:HavePassive(effectName)
-        if EntActivePassives[self:EntIndex()] and EntActivePassives[self:EntIndex()][effectName] then
+        if EntActivePassives[self] and EntActivePassives[self][effectName] then
             return true
         else
             return false
@@ -224,9 +224,9 @@ if SERVER then
     end
 
     function ENTITY:GetTimeLeft(effectName)
-        local EntID = self:EntIndex()
-        if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
-            local effectData = EntActiveEffects[EntID][effectName]
+        
+        if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
+            local effectData = EntActiveEffects[self][effectName]
             local elapsedTime = CurTime() - effectData.StartTime
             local remainingTime = effectData.Duration - elapsedTime
             return math.max(remainingTime, 0)
@@ -236,13 +236,13 @@ if SERVER then
     end
 
     function ENTITY:ChangeDuration(effectName, time)
-        local EntID = self:EntIndex()
-        if EntActiveEffects[EntID] and EntActiveEffects[EntID][effectName] then
-            local effectData = EntActiveEffects[EntID][effectName]
+        
+        if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
+            local effectData = EntActiveEffects[self][effectName]
             effectData.Duration = time
 
             net.Start("SEF_UpdateData")
-            net.WriteInt(EntID, 32)
+            net.WriteEntity(self)
             net.WriteString(effectName)
             net.WriteFloat(time)
             net.Broadcast()
@@ -674,8 +674,8 @@ else
     end
 
     function ENTITYCLIENT:GetEntTimeLeft(effectName)
-        if AllEntEffects[self:EntIndex()][effectName] then
-            local effectData = AllEntEffects[self:EntIndex()][effectName]
+        if AllEntEffects[self][effectName] then
+            local effectData = AllEntEffects[self][effectName]
             local elapsedTime = CurTime() - effectData.StartTime
             local remainingTime = effectData.Duration - elapsedTime
             return math.max(remainingTime, 0)

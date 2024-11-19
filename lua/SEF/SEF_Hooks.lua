@@ -1,38 +1,36 @@
 
 if SERVER then
     hook.Add("Think", "EntityStatusEffectsThink", function()
-        for entID, effects in pairs(EntActiveEffects) do
-            local Affected = Entity(entID)
-            if IsValid(Affected) and (Affected:IsPlayer() or Affected:IsNPC() or Affected:IsNextBot()) then
+        for entity, effects in pairs(EntActiveEffects) do
+            if IsValid(entity) and (entity:IsPlayer() or entity:IsNPC() or entity:IsNextBot()) then
                 for effectName, effectData in pairs(effects) do
                     local currentTime = CurTime()
                     local TimeLeft = effectData.StartTime + effectData.Duration - currentTime
                     if TimeLeft > 0 then
                         if not effectData.HasBegun or (effectData.HasBegun and effectData.IsReApplied) then
                             if effectData.FunctionBegin then
-                                effectData.FunctionBegin(Affected, unpack(effectData.Args))
+                                effectData.FunctionBegin(entity, unpack(effectData.Args))
                             end
                             effectData.HasBegun = true
                             effectData.IsReApplied = nil
                         end
 
                         if effectData.Function then
-                            effectData.Function(Affected, effectData.Duration, unpack(effectData.Args))
+                            effectData.Function(entity, effectData.Duration, unpack(effectData.Args))
                         end
-                        
                     else
                         if effectData.FunctionEnd then
-                            effectData.FunctionEnd(Affected, unpack(effectData.Args))
+                            effectData.FunctionEnd(entity, unpack(effectData.Args))
                         end
-    
-                        Affected:RemoveEffect(effectName)
+
+                        entity:RemoveEffect(effectName)
                         if effectData.Stackable then
-                            Affected:ResetSEFStacks(effectName)
+                            entity:ResetSEFStacks(effectName)
                         end
                     end
                 end
-            elseif not IsValid(Affected) then
-                EntActiveEffects[entID] = nil
+            elseif not IsValid(entity) then
+                EntActiveEffects[entity] = nil
             end
         end
     end)
@@ -40,16 +38,15 @@ if SERVER then
     
 
     hook.Add("Think", "EntityPassivesEffectThink", function()
-        for entID, Passives in pairs(EntActivePassives) do
-            local Affected = Entity(entID)
-            if IsValid(Affected) and (Affected:IsPlayer() or Affected:IsNPC() or Affected:IsNextBot()) then
+        for entity, Passives in pairs(EntActivePassives) do
+            if IsValid(entity) and (entity:IsPlayer() or entity:IsNPC() or entity:IsNextBot()) then
                 for effectName, PassiveData in pairs(Passives) do
                     if PassiveData.Function then
-                        PassiveData.Function(Affected)
+                        PassiveData.Function(entity)
                     end
                 end
-            elseif not IsValid(Affected) then
-                EntActivePassives[entID] = nil
+            elseif not IsValid(entity) then
+                EntActivePassives[entity] = nil
             end
         end
     end)
@@ -121,8 +118,8 @@ if SERVER then
     
 
     hook.Add("PlayerDeath", "RemoveStatusEffects", function(victim, inflictor, attacker)
-        if IsValid(victim) and EntActiveEffects[victim:EntIndex()] then
-            for effectName, _ in pairs(EntActiveEffects[victim:EntIndex()]) do
+        if IsValid(victim) and EntActiveEffects[victim] then
+            for effectName, _ in pairs(EntActiveEffects[victim]) do
                 if not StatusEffects[effectName].SoftDelete then
                     victim:RemoveEffect(effectName)
                 else
@@ -135,98 +132,100 @@ if SERVER then
     end)
 
     hook.Add("LambdaOnKilled", "RemoveStatusEffectsLambda", function(lambda, dmg, isSilent)
-        if IsValid(lambda) and EntActiveEffects[lambda:EntIndex()] then
-            for effectName, _ in pairs(EntActiveEffects[lambda:EntIndex()]) do
-                timer.Simple(0.5, function() lambda:SoftRemoveEffect(effectName) end)
+        if IsValid(lambda) and EntActiveEffects[lambda] then
+            for effectName, _ in pairs(EntActiveEffects[lambda]) do
+                timer.Simple(0.5, function()
+                    if IsValid(lambda) then
+                        lambda:SoftRemoveEffect(effectName)
+                    end
+                end)
             end
         end
         BaseStatResetAll(lambda)
     end)
 
     hook.Add("Think", "SEF_UpdateEffectDesc", function()
-        for ent, effects in pairs(EntEffectStacks) do
-            if IsValid(ent) then
+        for entity, effects in pairs(EntEffectStacks) do
+            if IsValid(entity) then
                 local hasActiveEffects = false
-    
+
                 for effectName, stackCount in pairs(effects) do
                     local effectData = StatusEffects[effectName]
                     if effectData and effectData.Stackable then
-                        local previousStack = ent.PreviousEffectStacks and ent.PreviousEffectStacks[effectName] or 0
-    
+                        local previousStack = entity.PreviousEffectStacks and entity.PreviousEffectStacks[effectName] or 0
+
                         if stackCount ~= previousStack then
                             if isfunction(effectData.Desc) then
-                                local newDesc = effectData.Desc(stackCount, unpack(EntActiveEffects[ent:EntIndex()][effectName].Args))
-    
-                                if ent:IsPlayer() then
+                                local newDesc = effectData.Desc(stackCount, unpack(EntActiveEffects[entity][effectName].Args))
+
+                                if entity:IsPlayer() then
                                     net.Start("SEF_UpdateDesc")
                                     net.WriteString(effectName)
                                     net.WriteString(newDesc)
-                                    net.Send(ent)
+                                    net.Send(entity)
                                 end
-    
-                                ent.PreviousEffectStacks = ent.PreviousEffectStacks or {}
-                                ent.PreviousEffectStacks[effectName] = stackCount
+
+                                entity.PreviousEffectStacks = entity.PreviousEffectStacks or {}
+                                entity.PreviousEffectStacks[effectName] = stackCount
                             end
-                            --print("[SENDED STACK UPDATE FOR: " .. effectName .. " ]")
                         end
-    
+
                         hasActiveEffects = true
                     end
                 end
-    
-                if ent.PreviousEffectStacks then
-                    for prevEffectName in pairs(ent.PreviousEffectStacks) do
+
+                if entity.PreviousEffectStacks then
+                    for prevEffectName in pairs(entity.PreviousEffectStacks) do
                         if not effects[prevEffectName] then
-                            ent.PreviousEffectStacks[prevEffectName] = nil
+                            entity.PreviousEffectStacks[prevEffectName] = nil
                         end
                     end
-    
+
                     if not hasActiveEffects then
-                        ent.PreviousEffectStacks = nil
+                        entity.PreviousEffectStacks = nil
                     end
                 end
             end
         end
 
-        for ent, passives in pairs(EntPassiveStacks) do
-            if IsValid(ent) then
+        for entity, passives in pairs(EntPassiveStacks) do
+            if IsValid(entity) then
                 local hasActivePassives = false
-    
+
                 for passiveName, stackCount in pairs(passives) do
                     local passiveData = PassiveEffects[passiveName]
                     if passiveData and passiveData.Stackable then
-                        local previousStack = ent.PreviousPassiveStacks and ent.PreviousPassiveStacks[passiveName] or 0
-    
+                        local previousStack = entity.PreviousPassiveStacks and entity.PreviousPassiveStacks[passiveName] or 0
+
                         if stackCount ~= previousStack then
                             if isfunction(passiveData.Desc) then
-                                local newDesc = passiveData.Desc(stackCount, unpack(EntActivePassives[ent:EntIndex()][passiveName].Args))
-    
-                                if ent:IsPlayer() then
+                                local newDesc = passiveData.Desc(stackCount, unpack(EntActivePassives[entity][passiveName].Args))
+
+                                if entity:IsPlayer() then
                                     net.Start("SEF_UpdateDesc")
                                     net.WriteString(passiveName)
                                     net.WriteString(newDesc)
-                                    net.Send(ent)
+                                    net.Send(entity)
                                 end
-    
-                                ent.PreviousPassiveStacks = ent.PreviousPassiveStacks or {}
-                                ent.PreviousPassiveStacks[passiveName] = stackCount
+
+                                entity.PreviousPassiveStacks = entity.PreviousPassiveStacks or {}
+                                entity.PreviousPassiveStacks[passiveName] = stackCount
                             end
-                            --print("[SENDED STACK UPDATE FOR: " .. passiveName .. " ]")
                         end
-    
+
                         hasActivePassives = true
                     end
                 end
-    
-                if ent.PreviousPassiveStacks then
-                    for prevPassiveName in pairs(ent.PreviousPassiveStacks) do
+
+                if entity.PreviousPassiveStacks then
+                    for prevPassiveName in pairs(entity.PreviousPassiveStacks) do
                         if not passives[prevPassiveName] then
-                            ent.PreviousPassiveStacks[prevPassiveName] = nil
+                            entity.PreviousPassiveStacks[prevPassiveName] = nil
                         end
                     end
-    
+
                     if not hasActivePassives then
-                        ent.PreviousPassiveStacks = nil
+                        entity.PreviousPassiveStacks = nil
                     end
                 end
             end
@@ -309,10 +308,9 @@ else
     
                     -- Dodaj hooka
                     hook.Add("Think", hookID, function()
-                        for entID, activeEffects in pairs(AllEntEffects) do
-                            local entity = Entity(entID)
+                        for ent, activeEffects in pairs(AllEntEffects) do
                             if activeEffects[effect] then
-                                effectData.DisplayFunction(entity)
+                                effectData.DisplayFunction(ent)
                             end
                         end
                     end)
@@ -330,10 +328,9 @@ else
     
                     -- Dodanie nowego hooka
                     hook.Add("Think", hookID, function()
-                        for entID, activeEffects in pairs(AllEntEffects) do
-                            local entity = Entity(entID)
+                        for ent, activeEffects in pairs(AllEntEffects) do
                             if activeEffects[effect] then
-                                effectData.DisplayFunction(entity)
+                                effectData.DisplayFunction(ent)
                             end
                         end
                     end)
