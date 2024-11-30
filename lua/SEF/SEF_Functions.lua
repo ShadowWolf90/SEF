@@ -47,6 +47,7 @@ if SERVER then
                 Function = effect.Effect,
                 FunctionBegin = effect.EffectBegin,
                 FunctionEnd = effect.EffectEnd,
+                FunctionOnRemove = effect.EffectOnRemove,
                 StartTime = CurTime(),
                 Duration = time,
                 Args = args
@@ -86,13 +87,34 @@ if SERVER then
             end
         end
     end
-    
-    
-    
-    function ENTITY:RemoveEffect(effectName)
-        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
+
+
+    function ENTITY:GetTimeLeft(effectName)
         
         if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
+            local effectData = EntActiveEffects[self][effectName]
+            local elapsedTime = CurTime() - effectData.StartTime
+            local remainingTime = effectData.Duration - elapsedTime
+            return math.max(remainingTime, 0)
+        else
+            return 0 
+        end
+    end
+    
+    
+    function ENTITY:RemoveEffect(effectName, ...)
+        local SEF_LoggingMode = GetConVar("SEF_LoggingMode")
+        local args = {...}
+        
+        if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
+
+            local effectData = EntActiveEffects[self][effectName]
+            local timeLeft = self:GetTimeLeft(effectName)
+
+            if effectData and effectData.FunctionOnRemove and timeLeft > 0.1 then
+                effectData.FunctionOnRemove(self, timeLeft, unpack{args})
+            end
+
             EntActiveEffects[self][effectName] = nil
             if SEF_LoggingMode:GetBool() then
                 print("[Status Effect Framework] Removed Effect", effectName, "from entity:", self)
@@ -220,18 +242,6 @@ if SERVER then
             return true
         else
             return false
-        end
-    end
-
-    function ENTITY:GetTimeLeft(effectName)
-        
-        if EntActiveEffects[self] and EntActiveEffects[self][effectName] then
-            local effectData = EntActiveEffects[self][effectName]
-            local elapsedTime = CurTime() - effectData.StartTime
-            local remainingTime = effectData.Duration - elapsedTime
-            return math.max(remainingTime, 0)
-        else
-            return 0 
         end
     end
 

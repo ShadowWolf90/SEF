@@ -35,7 +35,7 @@ if CLIENT then
     CreateClientConVar("SEF_StatusEffectX", 50, true, false, "X position of Status Effects applied on you.", 0, ScrW())
     CreateClientConVar("SEF_StatusEffectY", 925, true, false, "Y position of Status Effects applied on you.", 0, ScrH())
     CreateClientConVar("SEF_ScaleUI", 1, true, false, "Scale UI with this ConVar if you see it too small or too big", 0.1, math.huge)
-    CreateClientConVar("SEF_StatusEffectDisplay", 1, true, false, "Shows effects on players/NPCS/Lambdas.", 0, 1)
+    CreateClientConVar("SEF_StatusEffectDisplay", 0, true, false, "Shows effects on players/NPCS/Lambdas.", 0, 2)
     CreateClientConVar("SEF_StatusEffectHUDStyle", 1, true, false, "Change style of Status Effects.", 0, 1)
     local ScaleUI
 
@@ -283,6 +283,102 @@ if CLIENT then
             draw.SimpleText("Duration: " .. duration .. " seconds", "SEFFont", tooltipX + 5, tooltipY + NameH + DescH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
         end
     end
+
+    local function DrawSquareStatusEffectTimer(x, y, effectName, effectDesc, duration, startTime)
+        local effect = StatusEffects[effectName]
+        if not effect then return end
+    
+        local mouseX = gui.MouseX()
+        local mouseY = gui.MouseY()
+        local ScaleUI = GetConVar("SEF_ScaleUI"):GetFloat()
+    
+        surface.SetFont("SEFFont")
+    
+        local FormattedName = effect.Name or SplitCamelCase(effectName)
+    
+        local NameW, NameH = surface.GetTextSize(FormattedName)
+        local DescW, DescH = 0, 0
+        if effectDesc and effectDesc ~= "" then
+            DescW, DescH = surface.GetTextSize(effectDesc)
+        end
+        local DurW, DurH = surface.GetTextSize("Duration: " .. duration .. " seconds")
+        local TotalWidth = math.max(NameW, DurW, DescW)
+        local TotalHeight = NameH + DurH + DescH
+        local StackAmount
+        local StackName
+        local StackWidth, StackHeight
+        local StackNumberWidth, StackNumberHeight
+        if PlayerEffectStacks[effectName] then
+            StackAmount = PlayerEffectStacks[effectName]
+            StackName = effect.StackName or "Stacks"
+            StackWidth, StackHeight = surface.GetTextSize(StackName)
+            StackNumberWidth, StackNumberHeight = surface.GetTextSize(StackAmount)
+        else
+            StackAmount, StackName, StackWidth, StackHeight = 0, nil, nil, nil
+            StackNumberWidth, StackNumberHeight = nil
+        end
+    
+        local icon = Material(effect.Icon)
+    
+        local TextColor, BarColor
+        if effect.Type == "BUFF" then
+            surface.SetDrawColor(30, 255, 0, 255)
+            TextColor, BarColor = Color(30, 255, 0, 255), Color(30, 125, 0)
+        else
+            surface.SetDrawColor(255, 0, 0, 255)
+            TextColor, BarColor = Color(255, 0, 0, 255), Color(80, 0, 0)
+        end
+    
+        local remainingTime = duration - (CurTime() - startTime)
+        local TimeDisplay = remainingTime == math.huge and "∞" or remainingTime < 10 and string.format("%.1f", remainingTime) or remainingTime > 10 and math.Round(remainingTime)
+        local barHeight = 50 * (remainingTime / duration)
+
+        if remainingTime == math.huge then barHeight = 50 end
+    
+        -- Scaled background rect
+        surface.SetDrawColor(80, 80, 80)
+        surface.DrawOutlinedRect(x * ScaleUI, y * ScaleUI, 50 * ScaleUI, 50 * ScaleUI, 2)
+        surface.SetDrawColor(80, 80, 80, 100)
+        surface.DrawRect(x * ScaleUI, y * ScaleUI, 50 * ScaleUI, 50 * ScaleUI)
+    
+        -- Scaled inner colored bar
+        surface.SetDrawColor(BarColor)
+        surface.DrawRect((x + 1) * ScaleUI, (y + 50 - barHeight) * ScaleUI, 48 * ScaleUI, barHeight * ScaleUI)
+    
+        -- Icon
+        surface.SetMaterial(icon)
+        surface.SetDrawColor(255, 255, 255, 255)
+        surface.DrawTexturedRectRotated((x + 25) * ScaleUI, (y + 25) * ScaleUI, 30 * ScaleUI, 30 * ScaleUI, 0)
+    
+        -- Remaining time display
+        draw.SimpleText(TimeDisplay, "SEFFont", (x + 25) * ScaleUI, (y - 20) * ScaleUI, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    
+        -- Stack display
+        if StackAmount > 1 then
+            draw.SimpleText(StackName .. ": " .. StackAmount, "SEFFont", (x + 25) * ScaleUI, (y + 60) * ScaleUI, Color(255, 238, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+    
+        -- Tooltip for hover
+        if mouseX >= x * ScaleUI and mouseX <= (x + 50) * ScaleUI and mouseY >= y * ScaleUI and mouseY <= (y + 50) * ScaleUI then
+            local tooltipX, tooltipY = mouseX, mouseY + 30
+            if tooltipX + TotalWidth + 10 > ScrW() then
+                tooltipX = ScrW() - TotalWidth - 10
+            end
+            if tooltipY + TotalHeight > ScrH() then
+                tooltipY = ScrH() - TotalHeight - 10
+            end
+    
+            surface.SetDrawColor(0, 0, 0, 200)
+            surface.DrawRect(tooltipX, tooltipY, (TotalWidth + 10) * ScaleUI, TotalHeight * ScaleUI)
+            
+            draw.SimpleText(FormattedName, "SEFFont", tooltipX + 5, tooltipY, Color(255, 208, 0), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+            
+            if DescH > 0 then
+                draw.DrawText(effectDesc, "SEFFont", tooltipX + 5, tooltipY + NameH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+            end
+            draw.SimpleText("Duration: " .. duration .. " seconds", "SEFFont", tooltipX + 5, tooltipY + NameH + DescH, TextColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+        end
+    end
     
 
     local function DrawActivePassive(x, y, passiveName, passiveDesc)
@@ -382,12 +478,18 @@ if CLIENT then
 
                 StatusEffX = StatusEffX + 50
 
-            else
+            elseif StatusEffectStyle == 1 then
 
                 DrawBoxStatusEffectTimer(StatusEffX , StatusEffY, effectName, effectData.Desc, effectData.Duration, effectData.StartTime)
 
                 StatusEffY = StatusEffY - 55
 
+
+            elseif StatusEffectStyle == 2 then
+
+                DrawSquareStatusEffectTimer(StatusEffX , StatusEffY, effectName, effectData.Desc, effectData.Duration, effectData.StartTime)
+
+                StatusEffX = StatusEffX + 50
 
             end
 
@@ -494,7 +596,7 @@ if CLIENT then
         local visibleEntities = {}
     
         for ent, statuseffects in pairs(AllEntEffects) do
-            if IsValid(ent) and ent ~= LocalPlayer() and WithinDistance(LocalPlayer(), ent:GetPos(), 1500) then
+            if IsValid(ent) and  ent ~= LocalPlayer() and WithinDistance(LocalPlayer(), ent:GetPos(), 1500) then
                 local distance = LocalPlayer():GetPos():DistToSqr(ent:GetPos()) -- Kwadrat odległości (optymalniejsze)
                 table.insert(visibleEntities, { ent = ent, dist = distance })
             elseif not IsValid(ent) then
@@ -532,7 +634,7 @@ if CLIENT then
             local startOffset = -((effectCount - 1) * spacing) / 2
 
             local index = 0
-            for effectName, effectData in SortedPairsByMemberValue(statuseffects, "StartTime", true) do
+            for effectName, effectData in SortedPairsByMemberValue(statuseffects, "StartTime", false) do
                 local offset = startOffset + index * spacing
                 Draw3DStatusEffect(ent, effectName, effectData.Duration, effectData.StartTime, offset)
                 index = index + 1

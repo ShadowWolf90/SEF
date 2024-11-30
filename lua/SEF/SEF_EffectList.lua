@@ -529,6 +529,26 @@ StatusEffects = {
                         ent:TakeDamage(damageamount)
                     end
                     ent.BleedingEffectDelay = CurTime() + BleedDelay
+
+                    local DmgSound = {
+                        "physics/flesh/flesh_impact_bullet1.wav",
+                        "physics/flesh/flesh_impact_bullet2.wav",
+                        "physics/flesh/flesh_impact_bullet3.wav",
+                        "physics/flesh/flesh_impact_bullet4.wav",
+                        "physics/flesh/flesh_impact_bullet5.wav",
+                    }
+
+                    local randomSound = DmgSound[math.random(#DmgSound)]
+
+                    -- Efekt krwi
+                    local effectData = EffectData()
+                    effectData:SetOrigin(ent:WorldSpaceCenter() + Vector(0, 0, 10)) -- Pozycja, z której będzie tryskać krew
+                    effectData:SetMagnitude(5) -- Ilość cząsteczek
+                    effectData:SetScale(1) -- Skala efektu
+                    effectData:SetColor(0) -- Kolor krwi (0 - czerwony, 1 - żółty)
+                    util.Effect("BloodImpact", effectData, true, true)
+
+                    ent:EmitSound(randomSound, 100, 140, 1, CHAN_AUTO)
                 end
             end
         end,
@@ -610,9 +630,9 @@ StatusEffects = {
         end,
         Effect = function(ent, time, percent)
             if percent == nil then percent = 50 end
-            for effectName, effectData in pairs(EntActiveEffects[ent:EntIndex()]) do
+            for effectName, effectData in pairs(EntActiveEffects[ent]) do
                 if StatusEffects[effectName].Type == "DEBUFF" and not effectData.TenacityAffected then
-                    local NewDuration = EntActiveEffects[ent:EntIndex()][effectName].Duration * (1 - (percent / 100))
+                    local NewDuration = EntActiveEffects[ent][effectName].Duration * (1 - (percent / 100))
                     ent:ChangeDuration(effectName, NewDuration)
                     effectData.TenacityAffected = true
                 end
@@ -1024,7 +1044,7 @@ StatusEffects = {
             if ent:IsPlayer() then
                 ent:SprintDisable()
             end
-        end
+        end,
     },
     Vuln = {
         Icon = "SEF_Icons/vuln.png",
@@ -1038,9 +1058,9 @@ StatusEffects = {
             end
         end,
         Effect = function(ent, time)
-            for effectName, effectData in pairs(EntActiveEffects[ent:EntIndex()]) do
+            for effectName, effectData in pairs(EntActiveEffects[ent]) do
                 if StatusEffects[effectName].Type == "DEBUFF" and not effectData.VulnAffected and StatusEffects[effectName].Name ~= "Vulnerability" then
-                    local NewDuration = EntActiveEffects[ent:EntIndex()][effectName].Duration * 1.5
+                    local NewDuration = EntActiveEffects[ent][effectName].Duration * 1.5
                     ent:ChangeDuration(effectName, NewDuration)
                     effectData.VulnAffected = true
                 end
@@ -1048,7 +1068,7 @@ StatusEffects = {
         end,
         EffectEnd = function(ent)
             ent.VulnEffectSound = nil
-        end
+        end,
     },
     Concussion = {
         Icon = "SEF_Icons/concussion.png",
