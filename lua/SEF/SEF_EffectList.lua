@@ -1217,7 +1217,71 @@ StatusEffects = {
             }
         },
         ServerHooks = {},
-    }
+    },
+    Freeze = { 
+        Icon = "SEF_Icons/frozen.png", -- Icon on HUD and displays
+        Desc = "You will become ice cube once you reach 10 stacks.", -- Description of your effect. Can be turned into a function that returns string.format() for dynamic description
+        Type = "DEBUFF", -- Type: BUFF or DEBUFF
+        Stackable = true, -- If your effect can obtain stacks
+        StackName = "Snowstacks", -- Optional name for your stacks
+        Effect = function(ent, time, inf)
+            if ent:GetSEFStacks("Freeze") >= 10 then
+                ent:RemoveEffect("Freeze")
+                ent:ClearSEFStacks("Freeze")
+                ent:ApplyEffect("IceCubed", 10, inf)
+            end
+        end, -- Effect on entity/player, function can be expanded by additional arguments
+        EffectEnd = function(ent, time)
+            ent:ClearSEFStacks("Freeze")
+        end
+    },
+    IceCubed = { 
+        Icon = "SEF_Icons/icecube.png", -- Icon on HUD and displays
+        Desc = "You are frozen.", -- Description of your effect. Can be turned into a function that returns string.format() for dynamic description
+        Type = "DEBUFF", -- Type: BUFF or DEBUFF
+        EffectBegin = function(ent, time) 
+            ent:SetMaterial("models/shiny")
+            ent:SetColor(Color(0, 217, 255))
+        end, -- Effect on entity/player, function can be expanded by additional arguments
+        Effect = function(ent, time, inf)
+            local TimeLeft = ent:GetTimeLeft("IceCubed")
+            if TimeLeft > 0.1 then
+
+                if not ent.IceCubedEffectDelay then
+                    ent.IceCubedEffectDelay  = CurTime()
+                end
+
+                local BleedDelay = 0.6
+
+                if CurTime() >= ent.IceCubedEffectDelay  then
+                    if IsValid(inf) then
+                        local dmg = DamageInfo()
+                        dmg:SetDamage(ent:GetMaxHealth() * 0.01)
+                        dmg:SetInflictor(inf)
+                        dmg:SetAttacker(inf)
+                        ent:TakeDamageInfo(dmg)
+                    else
+                        ent:TakeDamage(damageamount)
+                    end
+                    ent.IceCubedEffectDelay = CurTime() + BleedDelay
+
+                    local DmgSound = {
+                        "weapons/Custom/impact/layer/kelvin_wpn_impact_01.wav",
+                        "weapons/Custom/impact/layer/kelvin_wpn_impact_02.wav",
+                        "weapons/Custom/impact/layer/kelvin_wpn_impact_03.wav",
+                        "weapons/Custom/impact/layer/kelvin_wpn_impact_04.wav",
+                    }
+
+                    local randomSound = DmgSound[math.random(#DmgSound)]
+                    ent:EmitSound(randomSound, 100, 140, 1, CHAN_AUTO)
+                end
+            end
+        end,
+        EffectEnd = function(ent, time)
+            ent:SetMaterial(nil)
+            ent:SetColor(Color(255, 255, 255))
+        end,
+    },
     --[[
     Immortality = {
         Icon = "SEF_Icons/immortal.png",
